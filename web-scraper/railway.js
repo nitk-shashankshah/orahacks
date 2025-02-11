@@ -108,7 +108,7 @@ async function classifyData() {
 
     const classify = await cohere.classify({
         model: '7939a9db-b48e-414c-93d6-7876d475061f-ft',
-        inputs: results.rows.map(each => each["TITLE"])
+        inputs: results.rows.map(each => each["TITLE"]).slice(0,96)
     });
 
     console.log(JSON.stringify(classify));
