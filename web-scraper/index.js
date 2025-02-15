@@ -1,6 +1,8 @@
 // Filename - index.js
 var cors = require('cors');
 var { railwayScraping, classifyData, db_connect }  = require('./railway'); 
+var { scraper }  = require('./cnbc/cnbc_ai'); 
+
 var transportScraping = require('./transport'); 
 
 // Importing express module
@@ -21,10 +23,16 @@ app.get("/opportunities", cors(corsOptions), async (req, res, next) => {
     res.send(JSON.stringify(ls));
 })
 
+// Handling GET /hello request
+app.get("/load/railway", cors(corsOptions), async (req, res, next) => {
+    var ls = await railwayScraping();
+    console.log(JSON.stringify(ls));
+    res.send(JSON.stringify(ls));
+})
 
 // Handling GET /hello request
-app.get("/load", cors(corsOptions), async (req, res, next) => {
-    var ls = await railwayScraping();
+app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
+    var ls = await scraper();
     console.log(JSON.stringify(ls));
     res.send(JSON.stringify(ls));
 })

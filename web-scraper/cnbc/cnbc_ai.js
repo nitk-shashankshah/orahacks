@@ -22,37 +22,34 @@ async function db_connect(){
     return connection;
 }
 
-
-async function railwayScraping() {
+async function scraper() {
     // downloading the target web page
     // by performing an HTTP GET request in Axios
 
     var conn = await db_connect();
 
     var headlines = [];
-    for (var i=0;i<=1000;i++){
-        var page_url = "https://www.railwaypro.com/wp/category/latest-news/infrastructure/";
-        if (i>1)
-            page_url = page_url+ "page/"+i;
+    
+    var page_url = "https://www.cnbc.com/ai-artificial-intelligence/";
+        
+    console.log(page_url);
 
-        console.log(page_url);
-
-        const axiosResponse = await axios.request({
+    const axiosResponse = await axios.request({
             method: "GET",        
             url: page_url,
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
             }
-        });
-        const $ = cheerio.load(axiosResponse.data)
+    });
+    const $ = cheerio.load(axiosResponse.data)
 
-        $(".mh-loop-title").each((ind, el) => {
+    $(".Card-titleContainer").each((ind, el) => {
             var obj = {};
             $(el).find("a").each(async (ind, lnk) => {
                 obj["title"] = $(lnk).html().trim();
                 obj["link"] = $(lnk).attr("href");
 
-                const pageResp = await axios.request({
+                /*const pageResp = await axios.request({
                     method: "GET",
                     url: obj["link"],
                     headers: {
@@ -63,14 +60,13 @@ async function railwayScraping() {
                 
                 obj["content"] = $_page("article").html();
 
-                obj["desc"] = $($(".mh-loop-excerpt p")[ind]).html().trim();
+                obj["desc"] = $($(".mh-loop-excerpt p")[ind]).html().trim();*/
                 
                 console.log(JSON.stringify(obj["title"]));
                 
                 headlines.push(obj["title"]);
             });        
-        });
-    }
+    });    
     
     console.log(JSON.stringify(headlines));
 
@@ -85,7 +81,7 @@ async function railwayScraping() {
     const options = {
         autoCommit: false,
         bindDefs: {
-            ttle: { type: oracledb.STRING, maxSize: 1000 }
+            ttle: { type: oracledb.STRING, maxSize: 5000 }
         }
     };
     
@@ -121,7 +117,7 @@ async function classifyData() {
 }
 
 module.exports = {
-    railwayScraping : railwayScraping,
+    scraper : scraper,
     classifyData: classifyData,
     db_connect: db_connect
 }
