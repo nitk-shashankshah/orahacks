@@ -22,14 +22,13 @@ async function db_connect(){
     return connection;
 }
 
-
-async function railwayScraping() {
+async function scraper() {
     // downloading the target web page
     // by performing an HTTP GET request in Axios
 
     var pages = [];
 
-    var page_url = "https://www.railwaypro.com/wp/";
+    var page_url = "https://www.cnbc.com";
         
     console.log(page_url);
 
@@ -42,7 +41,7 @@ async function railwayScraping() {
     });
     const $ = cheerio.load(axiosResponse.data)
 
-    $(".menu-item-object-category").each((ind, el) => {
+    $(".nav-menu-primaryLink").each((ind, el) => {
         $(el).find("a").each(async (ind, lnk) => {
             pages.push($(lnk).attr("href"));
         });
@@ -50,80 +49,80 @@ async function railwayScraping() {
 
     for (var page_each of pages){
         let headlines = [];
-        for (var i=0;i<=3;i++){
-        var sub_page_url = page_each;
-        console.log(sub_page_url);
-        if (i>1)
-            sub_page_url = sub_page_url+ "page/"+i;
 
-        console.log('\n'+sub_page_url);
+        console.log(page_url+page_each);
 
-        const axiosResponse = await axios.request({
-            method: "GET",        
-            url: sub_page_url,
-            headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
-            }
-        });
-        const $ = cheerio.load(axiosResponse.data)
-
-        $(".mh-loop-title").each((ind, el) => {
-            var obj = {};
-            $(el).find("a").each(async (ind, lnk) => {
-                obj["title"] = $(lnk).html().trim();
-                obj["link"] = $(lnk).attr("href");
-
-                const pageResp = await axios.request({
-                    method: "GET",
-                    url: obj["link"],
+        try {
+            axiosResponse = await axios.request({
+                    method: "GET",        
+                    url: page_url+page_each,
                     headers: {
                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
                     }
-                });
-                const $_page = cheerio.load(pageResp.data)
-                
-                obj["content"] = $_page("article").html();
+            });
+            const $ = cheerio.load(axiosResponse.data)
 
-                obj["desc"] = $($(".mh-loop-excerpt p")[ind]).html().trim();
-                
-                console.log(JSON.stringify(obj["title"]));
-                
-                headlines.push(obj["title"]);
-            });        
-        });
+            $(".Card-titleContainer").each((ind, el) => {
+                    var obj = {};
+                    $(el).find("a").each(async (ind, lnk) => {
+                        obj["title"] = $(lnk).html().trim();
+                        obj["link"] = $(lnk).attr("href");
+
+                        /*const pageResp = await axios.request({
+                            method: "GET",
+                            url: obj["link"],
+                            headers: {
+                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+                            }
+                        });
+                        const $_page = cheerio.load(pageResp.data)
+                        
+                        obj["content"] = $_page("article").html();
+
+                        obj["desc"] = $($(".mh-loop-excerpt p")[ind]).html().trim();*/
+                        
+                        console.log(JSON.stringify(obj["title"]));
+                        
+                        headlines.push(obj["title"]);
+                    });        
+            });    
+        } catch(ex){
+            console.log(ex.message);
         }
-    
-        var conn = await db_connect();
-
-        console.log(JSON.stringify(headlines));
 
         try{
+            var conn = await db_connect();
+
+            console.log(JSON.stringify(headlines));
+
             var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE") values(:ttle)`;
 
-            const binds = headlines.map((each, idx) => ({
+            var binds = headlines.map((each, idx) => ({
             ttle: each
             }));            
 
             console.log(JSON.stringify(binds));
 
-            const options = {
+            var options = {
                 autoCommit: false,
                 bindDefs: {
-                    ttle: { type: oracledb.STRING, maxSize: 1000 }
+                    ttle: { type: oracledb.STRING, maxSize: 5000 }
                 }
             };
+                
+            var results = await conn.executeMany(insertStatement, binds, options);
             
-            const results = await conn.executeMany(insertStatement, binds, options);
-            
+            console.log(JSON.stringify(results));
+
             await conn.commit();
-        } catch(ex){
+
+            await conn.close();
+        } catch(ex) {
             console.log(ex.message);
         }
-
-        await conn.close();
-    
-        //return classify;
     }
+
+    //return classify;
 }
 
 async function classifyData() {
@@ -149,7 +148,7 @@ async function classifyData() {
 }
 
 module.exports = {
-    railwayScraping : railwayScraping,
+    scraper : scraper,
     classifyData: classifyData,
     db_connect: db_connect
 }

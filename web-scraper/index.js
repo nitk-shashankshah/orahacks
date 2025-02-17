@@ -1,7 +1,7 @@
 // Filename - index.js
 var cors = require('cors');
 var { railwayScraping, classifyData, db_connect }  = require('./railway'); 
-var { scraper }  = require('./cnbc/cnbc_ai'); 
+var { scraper }  = require('./cnbc/cnbc'); 
 
 var transportScraping = require('./transport'); 
 
