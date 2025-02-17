@@ -18,7 +18,7 @@ app.use(cors());
 
 // Handling GET /hello request
 app.get("/opportunities", cors(corsOptions), async (req, res, next) => {
-    var ls = await classifyData();
+    var ls = await classifyData(req.query.label);
     console.log(JSON.stringify(ls));
     res.send(JSON.stringify(ls));
 })

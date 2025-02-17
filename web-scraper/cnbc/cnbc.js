@@ -65,8 +65,9 @@ async function scraper() {
             $(".Card-titleContainer").each((ind, el) => {
                     var obj = {};
                     $(el).find("a").each(async (ind, lnk) => {
-                        obj["title"] = $(lnk).html().trim();
-                        obj["link"] = $(lnk).attr("href");
+                        obj["ttle"] = $(lnk).html().trim();
+                        obj["lnk"] = $(lnk).attr("href");
+                        obj["lbl"] = page_each;
 
                         /*const pageResp = await axios.request({
                             method: "GET",
@@ -81,9 +82,7 @@ async function scraper() {
 
                         obj["desc"] = $($(".mh-loop-excerpt p")[ind]).html().trim();*/
                         
-                        console.log(JSON.stringify(obj["title"]));
-                        
-                        headlines.push(obj["title"]);
+                        headlines.push(obj);
                     });        
             });    
         } catch(ex){
@@ -95,10 +94,12 @@ async function scraper() {
 
             console.log(JSON.stringify(headlines));
 
-            var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE") values(:ttle)`;
+            var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK") values(:ttle,:lbl,:lnk)`;
 
             var binds = headlines.map((each, idx) => ({
-            ttle: each
+                ttle: each.ttle,
+                lnk: each.lnk,
+                lbl: each.lbl.replace(/\//g,'')
             }));            
 
             console.log(JSON.stringify(binds));
@@ -106,7 +107,9 @@ async function scraper() {
             var options = {
                 autoCommit: false,
                 bindDefs: {
-                    ttle: { type: oracledb.STRING, maxSize: 5000 }
+                    ttle: { type: oracledb.STRING, maxSize: 5000 },
+                    lbl: { type: oracledb.STRING, maxSize: 500 },
+                    lnk: { type: oracledb.STRING, maxSize: 5000 }
                 }
             };
                 

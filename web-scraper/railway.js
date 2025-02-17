@@ -51,46 +51,48 @@ async function railwayScraping() {
     for (var page_each of pages){
         let headlines = [];
         for (var i=0;i<=3;i++){
-        var sub_page_url = page_each;
-        console.log(sub_page_url);
-        if (i>1)
-            sub_page_url = sub_page_url+ "page/"+i;
+            var sub_page_url = page_each;
 
-        console.log('\n'+sub_page_url);
+            var lbl = sub_page_url.split('/')[sub_page_url.split('/').length - 2];
+            console.log(lbl);
+            
+            if (i>1)
+                sub_page_url = sub_page_url+ "page/"+i;
 
-        const axiosResponse = await axios.request({
-            method: "GET",        
-            url: sub_page_url,
-            headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
-            }
-        });
-        const $ = cheerio.load(axiosResponse.data)
+            const axiosResponse = await axios.request({
+                method: "GET",
+                url: sub_page_url,
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+                }
+            });
+            const $ = cheerio.load(axiosResponse.data)
 
-        $(".mh-loop-title").each((ind, el) => {
-            var obj = {};
-            $(el).find("a").each(async (ind, lnk) => {
-                obj["title"] = $(lnk).html().trim();
-                obj["link"] = $(lnk).attr("href");
+            $(".mh-loop-title").each((ind, el) => {
+                var obj = {};
+                $(el).find("a").each(async (ind, lnk) => {
+                    obj["ttle"] = $(lnk).html().trim();
+                    obj["lnk"] = $(lnk).attr("href");
+                    obj["lbl"] = lbl;
 
-                const pageResp = await axios.request({
-                    method: "GET",
-                    url: obj["link"],
-                    headers: {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
-                    }
-                });
-                const $_page = cheerio.load(pageResp.data)
-                
-                obj["content"] = $_page("article").html();
+                    /*const pageResp = await axios.request({
+                        method: "GET",
+                        url: obj["link"],
+                        headers: {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+                        }
+                    });
+                    const $_page = cheerio.load(pageResp.data)
+                    
+                    obj["content"] = $_page("article").html();
 
-                obj["desc"] = $($(".mh-loop-excerpt p")[ind]).html().trim();
-                
-                console.log(JSON.stringify(obj["title"]));
-                
-                headlines.push(obj["title"]);
-            });        
-        });
+                    obj["desc"] = $($(".mh-loop-excerpt p")[ind]).html().trim();
+                    
+                    console.log(JSON.stringify(obj["title"]));*/
+                    
+                    headlines.push(obj);
+                });        
+            });
         }
     
         var conn = await db_connect();
@@ -98,18 +100,22 @@ async function railwayScraping() {
         console.log(JSON.stringify(headlines));
 
         try{
-            var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE") values(:ttle)`;
+            var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK") values(:ttle,:lbl,:lnk)`;
 
-            const binds = headlines.map((each, idx) => ({
-            ttle: each
+            var binds = headlines.map((each, idx) => ({
+                ttle: each.ttle,
+                lnk: each.lnk,
+                lbl: each.lbl.replace(/\//g,'')
             }));            
 
             console.log(JSON.stringify(binds));
 
-            const options = {
+            var options = {
                 autoCommit: false,
                 bindDefs: {
-                    ttle: { type: oracledb.STRING, maxSize: 1000 }
+                    ttle: { type: oracledb.STRING, maxSize: 5000 },
+                    lbl: { type: oracledb.STRING, maxSize: 500 },
+                    lnk: { type: oracledb.STRING, maxSize: 5000 }
                 }
             };
             
@@ -126,21 +132,26 @@ async function railwayScraping() {
     }
 }
 
-async function classifyData() {
+async function classifyData(lbl) {
 
     var conn = await db_connect();
 
-    const results = await conn.execute('select * from ORAHACKS_SCRAPING', []);
+    const results = await conn.execute(`select * from ORAHACKS_SCRAPING where "LABEL"='${lbl}'`, []);
 
     console.log(JSON.stringify(results));
 
-    const classify = await cohere.classify({
-        model: '7939a9db-b48e-414c-93d6-7876d475061f-ft',
-        inputs: results.rows.map(each => each["TITLE"]).slice(0,96)
-    });
+    var classify;
 
-    console.log(JSON.stringify(classify));
+    try{
+        classify = await cohere.classify({
+            model: '7939a9db-b48e-414c-93d6-7876d475061f-ft',
+            inputs: results.rows.map(each => each["TITLE"]).slice(0,96)
+        });
 
+        console.log(JSON.stringify(classify));
+    } catch(ex){
+        console.log(ex.message);
+    }
     await conn.commit();
 
     await conn.close();
