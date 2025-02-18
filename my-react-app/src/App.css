@@ -1,4 +1,7 @@
-#root {
+@import "tailwindcss";
+
+
+/* #root {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
@@ -31,9 +34,9 @@
   a:nth-of-type(2) .logo {
     animation: logo-spin infinite 20s linear;
   }
-}
+} */
 
-.card {
+/* .card {
   padding: 2em;
 }
 
@@ -52,4 +55,4 @@
 
 #root{
   margin:0px;
-}
+} */

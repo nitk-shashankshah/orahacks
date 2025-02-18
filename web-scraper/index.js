@@ -2,6 +2,8 @@
 var cors = require('cors');
 var { railwayScraping, classifyData, db_connect }  = require('./railway'); 
 var { scraper }  = require('./cnbc/cnbc'); 
+var { bloomberg }  = require('./bloomberg/blommberg'); 
+var { forbes }  = require('./forbes/forbes'); 
 
 var transportScraping = require('./transport'); 
 
@@ -36,7 +38,19 @@ app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
     console.log(JSON.stringify(ls));
     res.send(JSON.stringify(ls));
 })
+// Handling GET /hello request
+app.get("/load/bloogberg", cors(corsOptions), async (req, res, next) => {
+    var ls = await bloomberg();
+    console.log(JSON.stringify(ls));
+    res.send(JSON.stringify(ls));
+})
 
+// Handling GET /hello request
+app.get("/load/forbes", cors(corsOptions), async (req, res, next) => {
+    var ls = await forbes();
+    console.log(JSON.stringify(ls));
+    res.send(JSON.stringify(ls));
+})
 // Server setup
 app.listen(3000, () => {
     console.log("Server is Running")
