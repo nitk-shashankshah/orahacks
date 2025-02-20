@@ -1,5 +1,4 @@
 const cheerio = require("cheerio");
-
 const axios = require("axios");
 var { CohereClientV2 } = require("cohere-ai");
 //const cohere = require('cohere-ai');
@@ -24,35 +23,30 @@ async function db_connect() {
   return connection;
 }
 
-async function forbes() {
-  const base_url = "https://www.forbes.com";
+async function wsj() {
+  const base_url = "https://www.wsj.com";
   const page_url = `${base_url}`;
 
-  console.log("Fetching main page:", page_url);
-
-  let axiosResponse;
-  try {
-    axiosResponse = await axios.get(page_url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching Bloomberg Asia page:", error.message);
-    return;
-  }
+  const axiosResponse = await axios.request({
+    method: "GET",
+    url: "https://www.wsj.com/",
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.5",
+      "Referer": "https://www.google.com",
+      "Connection": "keep-alive"
+    },
+  });
+  
+  
 
   const $ = cheerio.load(axiosResponse.data);
-
-  console.log("Page content fetched successfully");
-
   let menuLinks = [];
 
-  // Extract menu links from the specific div
   // Extracting menu links
-  $('div.ul.li.div.R0tvspq-').each((index, element) => {
-    const menuText = $(element).text().trim();
+  $(".css-ha5fq6-Item").each((index, element) => {
+    const menuText = $(element).attr("aria-label") || $(element).text().trim();
     const menuLink = $(element).find("a").attr("href");
 
     if (menuLink) {
@@ -63,7 +57,10 @@ async function forbes() {
       console.log("Menu Link:", fullLink);
     }
   });
-  // return classify;
+
+  // Extracting headlines from each menu link
+
+  //return classify;
 }
 
 async function classifyData() {
@@ -88,7 +85,7 @@ async function classifyData() {
 }
 
 module.exports = {
-  forbes: forbes,
+  wsj: wsj,
   classifyData: classifyData,
   db_connect: db_connect,
 };
