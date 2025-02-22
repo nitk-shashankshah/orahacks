@@ -136,7 +136,7 @@ async function classifyData(lbl) {
 
     var conn = await db_connect();
 
-    const results = await conn.execute(`select * from ORAHACKS_SCRAPING where "LABEL"='${lbl}'`, []);
+    const results = await conn.execute(`select * from ORAHACKS_SCRAPING where LOWER("LABEL") like LOWER('%${lbl}%')`, []);
 
     console.log(JSON.stringify(results));
 

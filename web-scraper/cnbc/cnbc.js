@@ -47,10 +47,13 @@ async function scraper() {
         });
     });
 
+
+    console.log(JSON.stringify(pages));
+
     for (var page_each of pages){
         let headlines = [];
 
-        console.log(page_url+page_each);
+        console.log("+++" + page_url+page_each);
 
         try {
             axiosResponse = await axios.request({
@@ -64,26 +67,39 @@ async function scraper() {
 
             $(".Card-titleContainer").each((ind, el) => {
                     var obj = {};
-                    $(el).find("a").each(async (ind, lnk) => {
-                        obj["ttle"] = $(lnk).html().trim();
-                        obj["lnk"] = $(lnk).attr("href");
-                        obj["lbl"] = page_each;
+                    if (ind <= 5){
+                        $(el).find("a").each(async (ind, lnk) => {
+                            obj["ttle"] = $(lnk).html().trim();
+                            obj["lnk"] = $(lnk).attr("href");
+                            obj["lbl"] = page_each;
 
-                        /*const pageResp = await axios.request({
-                            method: "GET",
-                            url: obj["link"],
-                            headers: {
-                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+                            try{
+                                const pageResp = await axios.request({
+                                    method: "GET",
+                                    url: obj["lnk"],
+                                    headers: {
+                                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+                                    }
+                                });
+
+                                const $_page = cheerio.load(pageResp.data)
+                                var all_content = [];
+                                
+                                $_page(".ArticleBody-articleBody").each((ind2, el2) => {
+                                    $(el2).find("p").each(async (ind, dt) => {
+                                        console.log($(dt).html());
+                                        all_content.push($(dt).html());
+                                    });
+                                });
+
+                                obj["content"] = all_content.join();
+                                headlines.push(obj);
+
+                            } catch(ex) {
+                                console.log(ex.message);
                             }
-                        });
-                        const $_page = cheerio.load(pageResp.data)
-                        
-                        obj["content"] = $_page("article").html();
-
-                        obj["desc"] = $($(".mh-loop-excerpt p")[ind]).html().trim();*/
-                        
-                        headlines.push(obj);
-                    });        
+                        });   
+                    }
             });    
         } catch(ex){
             console.log(ex.message);
@@ -94,12 +110,13 @@ async function scraper() {
 
             console.log(JSON.stringify(headlines));
 
-            var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK") values(:ttle,:lbl,:lnk)`;
+            var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT") values(:ttle,:lbl,:lnk,:content)`;
 
             var binds = headlines.map((each, idx) => ({
-                ttle: each.ttle,
+                ttle: each.ttle.substr(0,5000),
                 lnk: each.lnk,
-                lbl: each.lbl.replace(/\//g,'')
+                lbl: each.lbl.replace(/\//g,''),
+                content: each.content.replace(/\'/g,'').substr(0,10000)
             }));            
 
             console.log(JSON.stringify(binds));
@@ -109,13 +126,15 @@ async function scraper() {
                 bindDefs: {
                     ttle: { type: oracledb.STRING, maxSize: 5000 },
                     lbl: { type: oracledb.STRING, maxSize: 500 },
-                    lnk: { type: oracledb.STRING, maxSize: 5000 }
+                    lnk: { type: oracledb.STRING, maxSize: 5000 },
+                    content: { type: oracledb.STRING, maxSize: 10000 }
                 }
             };
                 
-            var results = await conn.executeMany(insertStatement, binds, options);
-            
-            console.log(JSON.stringify(results));
+            if (binds.length){
+                var results = await conn.executeMany(insertStatement, binds, options);            
+                console.log(JSON.stringify(results));
+            }
 
             await conn.commit();
 
