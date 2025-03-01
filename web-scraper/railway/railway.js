@@ -144,7 +144,7 @@ async function classifyData(lbl) {
 
     try{
         classify = await cohere.classify({
-            model: '7939a9db-b48e-414c-93d6-7876d475061f-ft',
+            model: 'FAkelchNnrqTDiWqN32bnBykS1wmn12wKJMAuTZi',
             inputs: results.rows.map(each => each["TITLE"]).slice(0,96)
         });
 

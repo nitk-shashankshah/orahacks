@@ -25,7 +25,7 @@ async function db_connect() {
 
 async function cnn() {
     const base_url = "https://edition.cnn.com";
-    const page_url = `${base_url}`;
+    const page_url = "https://edition.cnn.com/business";
 
     console.log("Fetching main page:", page_url);
 
@@ -55,12 +55,11 @@ async function cnn() {
             console.log("Menu Link:", fullLink);
         }
     });
-
+    
     // Extracting headlines from each menu link
     for (const { name, link } of menuLinks) {
         console.log("\nScraping:", link);
 
-        let headlines = [];
 
         try {
             axiosResponse = await axios.get(link, {
@@ -69,89 +68,101 @@ async function cnn() {
                 },
             });
 
+
             const $ = cheerio.load(axiosResponse.data);
 
             // Using `data-testid="headline"` to extract headlines
-            $('.container__headline-text').each((ind, el) => {
+            $('.container__headline-text').each(async (ind, el) => {
+
+                console.log(base_url+$(el).parent().parent().parent().attr("href"));
+
                 let obj = {
                     ttle: $(el).text().trim(),
-                    lnk: link,
+                    lnk: base_url+$(el).parent().parent().parent().attr("href"),
                     lbl: name.replace(/\//g, ""),
                 };
-                headlines.push(obj);
+
+                try{
+
+                    let headlines = [];
+
+                    const pageResp = await axios.request({
+                      method: "GET",
+                      url: obj["lnk"],
+                      headers: {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+                      }
+                    });
+
+                    const $_page = cheerio.load(pageResp.data)
+                    var all_content = [];
+                                
+                    console.log("length: " +$_page(".article__content-container").length);
+
+                    $_page(".article__content-container").each((ind2, el2) => {
+                      $(el2).find("p").each((ind, dt) => {
+                          all_content.push($(dt).html().trim());
+                          console.log($(dt).html().trim());
+                      });
+                    });
+
+                    obj["content"] = all_content.join().replace(/\'/g,'').replace(/\”/g,'').toString().substring(0,10000);
+                    headlines.push(obj);
+
+                    if (headlines.length > 0) {
+                      try {
+                      var conn = await db_connect();
+            
+                      console.log(JSON.stringify(headlines));
+            
+                      var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT") values(:ttle,:lbl,:lnk,:content)`;
+            
+                      var binds = headlines.map((each, idx) => ({
+                        ttle: each.ttle.substring(0,5000),
+                        lbl: each.lbl.replace(/\//g,''),
+                        lnk: each.lnk,
+                        content: each.content.replace(/\"/g,'').replace(/\'/g,'').replace(/\”/g,'').substring(0,10000)
+                      }));
+            
+                      console.log(JSON.stringify(binds));
+            
+                      var options = {
+                        autoCommit: false,
+                        bindDefs: {
+                          ttle: { type: oracledb.STRING, maxSize: 5000 },
+                          lbl: { type: oracledb.STRING, maxSize: 500 },
+                          lnk: { type: oracledb.STRING, maxSize: 5000 },
+                          content: { type: oracledb.STRING, maxSize: 10000 }
+                        },
+                      };
+            
+                      var results = await conn.executeMany(insertStatement, binds, options);
+            
+                      console.log(JSON.stringify(results));
+            
+                      await conn.commit();
+            
+                      await conn.close();
+            
+                      return;
+                    } catch (ex) {
+                      console.log(ex.message);
+                    }
+                  }
+
+                } catch(ex) {
+                    console.log(ex.message);
+                }
+
             });
 
-            console.log("Extracted Headlines:", headlines);
+
         } catch (ex) {
             console.log("Error fetching headlines:", ex.message);
             continue;
         }
 
         // Insert extracted headlines into Oracle DB
-        if (headlines.length > 0) {
-            try {
-                const conn = await db_connect();
-
-                const insertStatement = `INSERT INTO ORAHACKS_SCRAPING("TITLE","LABEL","LINK") VALUES(:ttle,:lbl,:lnk)`;
-
-                const binds = headlines.map(each => ({
-                    ttle: each.ttle,
-                    lnk: each.lnk,
-                    lbl: each.lbl,
-                }));
-
-                const options = {
-                    autoCommit: true,
-                    bindDefs: {
-                        ttle: { type: oracledb.STRING, maxSize: 5000 },
-                        lbl: { type: oracledb.STRING, maxSize: 500 },
-                        lnk: { type: oracledb.STRING, maxSize: 5000 },
-                    },
-                };
-
-                const results = await conn.executeMany(insertStatement, binds, options);
-                console.log("DB Insert Results:", results);
-
-                await conn.close();
-            } catch (ex) {
-                console.log("Database Error:", ex.message);
-            }
-        }
-
-    try {
-      var conn = await db_connect();
-
-      console.log(JSON.stringify(headlines));
-
-      var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK") values(:ttle,:lbl,:lnk)`;
-
-      var binds = headlines.map((each, idx) => ({
-        ttle: each.ttle,
-        lnk: each.lnk,
-        lbl: each.lbl.replace(/\//g, ""),
-      }));
-
-      console.log(JSON.stringify(binds));
-
-      var options = {
-        autoCommit: false,
-        bindDefs: {
-          ttle: { type: oracledb.STRING, maxSize: 5000 },
-          lbl: { type: oracledb.STRING, maxSize: 500 },
-          lnk: { type: oracledb.STRING, maxSize: 5000 },
-        },
-      };
-
-      var results = await conn.executeMany(insertStatement, binds, options);
-
-      console.log(JSON.stringify(results));
-
-      await conn.commit();
-
-      await conn.close();
-    } catch (ex) {
-      console.log(ex.message);
-    }
   }
 
   //return classify;

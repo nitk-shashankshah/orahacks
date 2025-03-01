@@ -9,6 +9,7 @@
     "cors": "^2.8.5",
     "cra-template": "1.2.0",
     "express": "^4.21.2",
+    "oci-analytics": "^2.102.2",
     "oracledb": "^6.7.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

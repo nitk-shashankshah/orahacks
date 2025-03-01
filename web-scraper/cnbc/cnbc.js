@@ -67,7 +67,6 @@ async function scraper() {
 
             $(".Card-titleContainer").each((ind, el) => {
                     var obj = {};
-                    if (ind <= 5){
                         $(el).find("a").each(async (ind, lnk) => {
                             obj["ttle"] = $(lnk).html().trim();
                             obj["lnk"] = $(lnk).attr("href");
@@ -98,8 +97,7 @@ async function scraper() {
                             } catch(ex) {
                                 console.log(ex.message);
                             }
-                        });   
-                    }
+                        });                       
             });    
         } catch(ex){
             console.log(ex.message);
