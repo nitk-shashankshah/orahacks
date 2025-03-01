@@ -9,17 +9,15 @@ oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 async function summarizeText(txt) {
 
   const cohere = new CohereClientV2({
-    token: "2l7u7rXSsFSKEZBC6CGw87kg8iK7JyvadnUzV1Gf",
+    token: "FAkelchNnrqTDiWqN32bnBykS1wmn12wKJMAuTZi",
   });
 
   try {
     // Make a request to the Cohere Summarize API
     const response = await cohere.summarize({
       text: txt,
-      length: 'short', // You can choose 'long' or 'very_long' as well
-      format: 'paragraph', // Other option is 'sentences'
-      model: 'medium', // Choose 'small' or 'large' as well
-      temperature: 0.7, // Adjust the temperature for creativity
+      length: 'short', 
+      format: 'paragraph',
     });
 
     // Extract the summary from the API response
@@ -130,10 +128,13 @@ async function cnn() {
 
                     obj["content"] = all_content.join().replace(/\'/g,'').replace(/\”/g,'').toString().substring(0,10000);
                     headlines.push(obj);
-
-                    var summary = await summarizeText(all_content.join().replace(/\'/g,'').replace(/\”/g,'').toString());
-
-                    console.log(summary);
+                    var summary = "";
+                    try{
+                      summary = await summarizeText(all_content.join().replace(/\'/g,'').replace(/\”/g,'').toString());
+                      console.log(summary);
+                    } catch(ex){
+                      //console.log(ex.message);
+                    }
 
                     if (headlines.length > 0) {
                       try {
@@ -147,7 +148,7 @@ async function cnn() {
                         ttle: each.ttle.substring(0,5000),
                         lbl: each.lbl.replace(/\//g,''),
                         lnk: each.lnk,
-                        content: each.content.replace(/\"/g,'').replace(/\'/g,'').replace(/\”/g,'').substring(0,10000)
+                        content: summary
                       }));
             
                       console.log(JSON.stringify(binds));
