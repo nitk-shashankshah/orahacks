@@ -5,9 +5,33 @@ var { CohereClientV2 } = require("cohere-ai");
 const oracledb = require("oracledb");
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
-const cohere = new CohereClientV2({
-  token: "2l7u7rXSsFSKEZBC6CGw87kg8iK7JyvadnUzV1Gf",
-});
+// Function to summarize text using Cohere API
+async function summarizeText(txt) {
+
+  const cohere = new CohereClientV2({
+    token: "2l7u7rXSsFSKEZBC6CGw87kg8iK7JyvadnUzV1Gf",
+  });
+
+  try {
+    // Make a request to the Cohere Summarize API
+    const response = await cohere.summarize({
+      text: txt,
+      length: 'short', // You can choose 'long' or 'very_long' as well
+      format: 'paragraph', // Other option is 'sentences'
+      model: 'medium', // Choose 'small' or 'large' as well
+      temperature: 0.7, // Adjust the temperature for creativity
+    });
+
+    // Extract the summary from the API response
+    const summary = response.summary;
+
+    return summary;
+  } catch (error) {
+    console.error('Error summarizing text:', error);
+    return null;
+  }
+}
+
 
 async function db_connect() {
   const connection = await oracledb.getConnection({
@@ -60,7 +84,6 @@ async function cnn() {
     for (const { name, link } of menuLinks) {
         console.log("\nScraping:", link);
 
-
         try {
             axiosResponse = await axios.get(link, {
                 headers: {
@@ -102,12 +125,15 @@ async function cnn() {
                     $_page(".article__content-container").each((ind2, el2) => {
                       $(el2).find("p").each((ind, dt) => {
                           all_content.push($(dt).html().trim());
-                          console.log($(dt).html().trim());
                       });
                     });
 
                     obj["content"] = all_content.join().replace(/\'/g,'').replace(/\”/g,'').toString().substring(0,10000);
                     headlines.push(obj);
+
+                    var summary = await summarizeText(all_content.join().replace(/\'/g,'').replace(/\”/g,'').toString());
+
+                    console.log(summary);
 
                     if (headlines.length > 0) {
                       try {
