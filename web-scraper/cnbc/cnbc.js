@@ -4,6 +4,8 @@ var {CohereClientV2} = require("cohere-ai");
 //const cohere = require('cohere-ai');
 const oracledb = require('oracledb');
 const summarizeText = require('../summarize');
+const classifyData = require('../classify');
+
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
 const cohere = new CohereClientV2({
@@ -52,7 +54,9 @@ async function scraper() {
     console.log(JSON.stringify(pages));
 
     for (var page_each of pages){
-        let headlines = [];
+
+        if (page_each !== '/technology/')
+          continue;
 
         console.log("+++" + page_url+page_each);
 
@@ -72,6 +76,7 @@ async function scraper() {
                             obj["ttle"] = $(lnk).html().trim();
                             obj["lnk"] = $(lnk).attr("href");
                             obj["lbl"] = page_each;
+                            let headlines = [];
 
                             try{
                                 const pageResp = await axios.request({
@@ -100,9 +105,50 @@ async function scraper() {
                                     //console.log(ex.message);
                                 }
 
+                                console.log("__________________________________________________________");
                                 console.log(obj["content"]);
                                 
+                                //await classifyData(obj["content"]);
+
                                 headlines.push(obj);
+
+                                try{
+                                    var conn = await db_connect();
+                        
+                                    console.log(JSON.stringify(headlines));
+                        
+                                    var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT") values(:ttle,:lbl,:lnk,:content)`;
+                        
+                                    var binds = headlines.map((each, idx) => ({
+                                        ttle: each.ttle.substr(0,5000),
+                                        lnk: each.lnk,
+                                        lbl: each.lbl.replace(/\//g,''),
+                                        content: each.content.replace(/\'/g,'').replace(/\"/g,'').replace(/\`/g,'').substr(0,10000)
+                                    }));            
+                        
+                                    console.log(JSON.stringify(binds));
+                        
+                                    var options = {
+                                        autoCommit: false,
+                                        bindDefs: {
+                                            ttle: { type: oracledb.STRING, maxSize: 5000 },
+                                            lbl: { type: oracledb.STRING, maxSize: 500 },
+                                            lnk: { type: oracledb.STRING, maxSize: 5000 },
+                                            content: { type: oracledb.STRING, maxSize: 10000 }
+                                        }
+                                    };
+                                        
+                                    if (binds.length){
+                                        var results = await conn.executeMany(insertStatement, binds, options);            
+                                        console.log(JSON.stringify(results));
+                                    }
+                        
+                                    await conn.commit();
+                        
+                                    await conn.close();
+                                } catch(ex) {
+                                    console.log(ex.message);
+                                }
 
                             } catch(ex) {
                                 console.log(ex.message);
@@ -113,68 +159,10 @@ async function scraper() {
             console.log(ex.message);
         }
 
-        try{
-            var conn = await db_connect();
-
-            console.log(JSON.stringify(headlines));
-
-            var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT") values(:ttle,:lbl,:lnk,:content)`;
-
-            var binds = headlines.map((each, idx) => ({
-                ttle: each.ttle.substr(0,5000),
-                lnk: each.lnk,
-                lbl: each.lbl.replace(/\//g,''),
-                content: each.content.replace(/\'/g,'').substr(0,10000)
-            }));            
-
-            console.log(JSON.stringify(binds));
-
-            var options = {
-                autoCommit: false,
-                bindDefs: {
-                    ttle: { type: oracledb.STRING, maxSize: 5000 },
-                    lbl: { type: oracledb.STRING, maxSize: 500 },
-                    lnk: { type: oracledb.STRING, maxSize: 5000 },
-                    content: { type: oracledb.STRING, maxSize: 10000 }
-                }
-            };
-                
-            if (binds.length){
-                var results = await conn.executeMany(insertStatement, binds, options);            
-                console.log(JSON.stringify(results));
-            }
-
-            await conn.commit();
-
-            await conn.close();
-        } catch(ex) {
-            console.log(ex.message);
-        }*/
+     
     }
 
     //return classify;
-}
-
-async function classifyData() {
-
-    var conn = await db_connect();
-
-    const results = await conn.execute('select * from ORAHACKS_SCRAPING', []);
-
-    console.log(JSON.stringify(results));
-
-    const classify = await cohere.classify({
-        model: '7939a9db-b48e-414c-93d6-7876d475061f-ft',
-        inputs: results.rows.map(each => each["TITLE"]).slice(0,96)
-    });
-
-    console.log(JSON.stringify(classify));
-
-    await conn.commit();
-
-    await conn.close();
-
-    return classify;
 }
 
 module.exports = {
