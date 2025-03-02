@@ -3,33 +3,9 @@ const axios = require("axios");
 var { CohereClientV2 } = require("cohere-ai");
 //const cohere = require('cohere-ai');
 const oracledb = require("oracledb");
+const summarizeText  = require('../summarize.js');
+
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
-
-// Function to summarize text using Cohere API
-async function summarizeText(txt) {
-
-  const cohere = new CohereClientV2({
-    token: "FAkelchNnrqTDiWqN32bnBykS1wmn12wKJMAuTZi",
-  });
-
-  try {
-    // Make a request to the Cohere Summarize API
-    const response = await cohere.summarize({
-      text: txt,
-      length: 'short', 
-      format: 'paragraph',
-    });
-
-    // Extract the summary from the API response
-    const summary = response.summary;
-
-    return summary;
-  } catch (error) {
-    console.error('Error summarizing text:', error);
-    return null;
-  }
-}
-
 
 async function db_connect() {
   const connection = await oracledb.getConnection({
@@ -74,13 +50,13 @@ async function cnn() {
         if (menuLink) {
             const fullLink = menuLink.startsWith("http") ? menuLink : base_url + menuLink;
             menuLinks.push({ name: menuText, link: fullLink });
-            console.log("Menu Link:", fullLink);
+            //console.log("Menu Link:", fullLink);
         }
     });
     
     // Extracting headlines from each menu link
     for (const { name, link } of menuLinks) {
-        console.log("\nScraping:", link);
+        //console.log("\nScraping:", link);
 
         try {
             axiosResponse = await axios.get(link, {
@@ -95,7 +71,7 @@ async function cnn() {
             // Using `data-testid="headline"` to extract headlines
             $('.container__headline-text').each(async (ind, el) => {
 
-                console.log(base_url+$(el).parent().parent().parent().attr("href"));
+                //console.log(base_url+$(el).parent().parent().parent().attr("href"));
 
                 let obj = {
                     ttle: $(el).text().trim(),
@@ -118,7 +94,7 @@ async function cnn() {
                     const $_page = cheerio.load(pageResp.data)
                     var all_content = [];
                                 
-                    console.log("length: " +$_page(".article__content-container").length);
+                    //console.log("length: " +$_page(".article__content-container").length);
 
                     $_page(".article__content-container").each((ind2, el2) => {
                       $(el2).find("p").each((ind, dt) => {
@@ -127,31 +103,41 @@ async function cnn() {
                     });
 
                     obj["content"] = all_content.join().replace(/\'/g,'').replace(/\”/g,'').toString().substring(0,10000);
-                    headlines.push(obj);
+                    
                     var summary = "";
                     try{
-                      summary = await summarizeText(all_content.join().replace(/\'/g,'').replace(/\”/g,'').toString());
-                      console.log(summary);
+                      if (obj["content"]){
+                        summary = await summarizeText(obj["content"]);
+                        console.log("______________________________");
+                        console.log(summary);
+                      }
                     } catch(ex){
                       //console.log(ex.message);
                     }
+                    obj["content"] = summary;
+
+                    //await classifyData(summary);
+
+                    /*headlines.push(obj);
+
 
                     if (headlines.length > 0) {
                       try {
                       var conn = await db_connect();
             
-                      console.log(JSON.stringify(headlines));
-            
+                      //console.log(JSON.stringify(headlines));
+
+
                       var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT") values(:ttle,:lbl,:lnk,:content)`;
             
                       var binds = headlines.map((each, idx) => ({
                         ttle: each.ttle.substring(0,5000),
                         lbl: each.lbl.replace(/\//g,''),
                         lnk: each.lnk,
-                        content: summary
+                        content: summary.replace(/\'/g,'').replace(/\`/g,'')
                       }));
             
-                      console.log(JSON.stringify(binds));
+                      //console.log(JSON.stringify(binds));
             
                       var options = {
                         autoCommit: false,
@@ -165,7 +151,7 @@ async function cnn() {
             
                       var results = await conn.executeMany(insertStatement, binds, options);
             
-                      console.log(JSON.stringify(results));
+                      //console.log(JSON.stringify(results));
             
                       await conn.commit();
             
@@ -173,19 +159,19 @@ async function cnn() {
             
                       return;
                     } catch (ex) {
-                      console.log(ex.message);
+                      //console.log(ex.message);
                     }
-                  }
+                  }*/
 
                 } catch(ex) {
-                    console.log(ex.message);
+                    //console.log(ex.message);
                 }
 
             });
 
 
         } catch (ex) {
-            console.log("Error fetching headlines:", ex.message);
+            //console.log("Error fetching headlines:", ex.message);
             continue;
         }
 
@@ -195,29 +181,8 @@ async function cnn() {
   //return classify;
 }
 
-async function classifyData() {
-  var conn = await db_connect();
-
-  const results = await conn.execute("select * from ORAHACKS_SCRAPING", []);
-
-  console.log(JSON.stringify(results));
-
-  const classify = await cohere.classify({
-    model: "7939a9db-b48e-414c-93d6-7876d475061f-ft",
-    inputs: results.rows.map((each) => each["TITLE"]).slice(0, 96),
-  });
-
-  console.log(JSON.stringify(classify));
-
-  await conn.commit();
-
-  await conn.close();
-
-  return classify;
-}
 
 module.exports = {
   cnn: cnn,
-  classifyData: classifyData,
   db_connect: db_connect,
 };

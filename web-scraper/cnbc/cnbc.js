@@ -3,6 +3,7 @@ const axios = require("axios")
 var {CohereClientV2} = require("cohere-ai");
 //const cohere = require('cohere-ai');
 const oracledb = require('oracledb');
+const summarizeText = require('../summarize');
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
 const cohere = new CohereClientV2({
@@ -86,12 +87,21 @@ async function scraper() {
                                 
                                 $_page(".ArticleBody-articleBody").each((ind2, el2) => {
                                     $(el2).find("p").each(async (ind, dt) => {
-                                        console.log($(dt).html());
                                         all_content.push($(dt).html());
                                     });
                                 });
 
                                 obj["content"] = all_content.join();
+
+                                try{
+                                    if (obj["content"])
+                                        obj["content"] = await summarizeText(obj["content"]);
+                                } catch(ex){
+                                    //console.log(ex.message);
+                                }
+
+                                console.log(obj["content"]);
+                                
                                 headlines.push(obj);
 
                             } catch(ex) {
@@ -139,7 +149,7 @@ async function scraper() {
             await conn.close();
         } catch(ex) {
             console.log(ex.message);
-        }
+        }*/
     }
 
     //return classify;
