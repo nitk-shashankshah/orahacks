@@ -4,6 +4,7 @@ var { CohereClientV2 } = require("cohere-ai");
 //const cohere = require('cohere-ai');
 const oracledb = require("oracledb");
 const summarizeText  = require('../summarize.js');
+const classifyData = require('../classify.js');
 
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
@@ -116,9 +117,9 @@ async function cnn() {
                     }
                     obj["content"] = summary;
 
-                    //await classifyData(summary);
+                    await classifyData(summary);
 
-                    /*headlines.push(obj);
+                    headlines.push(obj);
 
 
                     if (headlines.length > 0) {
@@ -161,7 +162,7 @@ async function cnn() {
                     } catch (ex) {
                       //console.log(ex.message);
                     }
-                  }*/
+                  }
 
                 } catch(ex) {
                     //console.log(ex.message);
