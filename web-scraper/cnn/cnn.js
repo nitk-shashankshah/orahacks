@@ -106,21 +106,21 @@ async function cnn() {
                     obj["content"] = all_content.join().replace(/\'/g,'').replace(/\”/g,'').toString().substring(0,10000);
                     
                     var summary = "";
+                    var prediction = "";
                     try{
                       if (obj["content"]){
                         summary = await summarizeText(obj["content"]);
                         console.log("______________________________");
                         console.log(summary);
+                        prediction = await classifyData(summary);
+                        console.log(JSON.stringify(prediction));
                       }
                     } catch(ex){
                       //console.log(ex.message);
                     }
                     obj["content"] = summary;
 
-                    await classifyData(summary);
-
                     headlines.push(obj);
-
 
                     if (headlines.length > 0) {
                       try {
@@ -128,17 +128,17 @@ async function cnn() {
             
                       //console.log(JSON.stringify(headlines));
 
-
-                      var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT") values(:ttle,:lbl,:lnk,:content)`;
+                      var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION") values(:ttle,:lbl,:lnk,:content,:prediction)`;
             
                       var binds = headlines.map((each, idx) => ({
                         ttle: each.ttle.substring(0,5000),
                         lbl: each.lbl.replace(/\//g,''),
                         lnk: each.lnk,
-                        content: summary.replace(/\'/g,'').replace(/\`/g,'')
+                        content: summary.replace(/\'/g,'').replace(/\`/g,''),
+                        prediction: prediction
                       }));
             
-                      //console.log(JSON.stringify(binds));
+                      console.log(JSON.stringify(binds));
             
                       var options = {
                         autoCommit: false,
@@ -146,13 +146,14 @@ async function cnn() {
                           ttle: { type: oracledb.STRING, maxSize: 5000 },
                           lbl: { type: oracledb.STRING, maxSize: 500 },
                           lnk: { type: oracledb.STRING, maxSize: 5000 },
-                          content: { type: oracledb.STRING, maxSize: 10000 }
+                          content: { type: oracledb.STRING, maxSize: 10000 },
+                          prediction:  { type: oracledb.STRING, maxSize: 100 }
                         },
                       };
             
                       var results = await conn.executeMany(insertStatement, binds, options);
             
-                      //console.log(JSON.stringify(results));
+                      console.log(JSON.stringify(results));
             
                       await conn.commit();
             
