@@ -55,9 +55,6 @@ async function scraper() {
 
     for (var page_each of pages){
 
-        if (page_each !== '/technology/')
-          continue;
-
         console.log("+++" + page_url+page_each);
 
         try {
@@ -108,7 +105,7 @@ async function scraper() {
                                 console.log("__________________________________________________________");
                                 console.log(obj["content"]);
                                 
-                                //await classifyData(obj["content"]);
+                                var prediction = await classifyData(obj["content"]);
 
                                 headlines.push(obj);
 
@@ -117,13 +114,14 @@ async function scraper() {
                         
                                     console.log(JSON.stringify(headlines));
                         
-                                    var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT") values(:ttle,:lbl,:lnk,:content)`;
+                                    var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION") values(:ttle,:lbl,:lnk,:content,:prediction)`;
                         
                                     var binds = headlines.map((each, idx) => ({
                                         ttle: each.ttle.substr(0,5000),
                                         lnk: each.lnk,
                                         lbl: each.lbl.replace(/\//g,''),
-                                        content: each.content.replace(/\'/g,'').replace(/\"/g,'').replace(/\`/g,'').substr(0,10000)
+                                        content: each.content.replace(/\'/g,'').replace(/\"/g,'').replace(/\`/g,'').substr(0,10000),
+                                        prediction: prediction
                                     }));            
                         
                                     console.log(JSON.stringify(binds));
@@ -134,7 +132,8 @@ async function scraper() {
                                             ttle: { type: oracledb.STRING, maxSize: 5000 },
                                             lbl: { type: oracledb.STRING, maxSize: 500 },
                                             lnk: { type: oracledb.STRING, maxSize: 5000 },
-                                            content: { type: oracledb.STRING, maxSize: 10000 }
+                                            content: { type: oracledb.STRING, maxSize: 10000 },
+                                            prediction: { type: oracledb.STRING, maxSize: 500 }
                                         }
                                     };
                                         

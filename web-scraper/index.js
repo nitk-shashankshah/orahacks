@@ -42,8 +42,8 @@ let corsOptions = {
 app.use(cors());
 
 // Handling GET /hello request
-app.get("/opportunities", cors(corsOptions), async (req, res, next) => {
-    var ls = await classifyData(req.query.label);
+app.get("/classify", cors(corsOptions), async (req, res, next) => {
+    var ls = await classifyData(req.query.label, req.query.classification);
     console.log(JSON.stringify(ls));
     res.send(JSON.stringify(ls));
 })
