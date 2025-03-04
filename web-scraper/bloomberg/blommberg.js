@@ -6,7 +6,7 @@ const oracledb = require("oracledb");
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
 const cohere = new CohereClientV2({
-  token: "2l7u7rXSsFSKEZBC6CGw87kg8iK7JyvadnUzV1Gf",
+  token: "FAkelchNnrqTDiWqN32bnBykS1wmn12wKJMAuTZi",
 });
 
 async function db_connect() {

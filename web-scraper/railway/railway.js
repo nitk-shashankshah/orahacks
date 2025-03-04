@@ -132,31 +132,17 @@ async function railwayScraping() {
     }
 }
 
-async function classifyData(lbl) {
+async function classifyData(lbl,class_type) {
 
     var conn = await db_connect();
 
-    const results = await conn.execute(`select * from ORAHACKS_SCRAPING where LOWER("LABEL") like LOWER('%${lbl}%')`, []);
+    console.log(`select * from ORAHACKS_SCRAPING where UPPER("LABEL") like '%${lbl.toUpperCase()}%' and  UPPER("CLASSIFICATION") like '%${class_type.toUpperCase()}%'`);
 
-    console.log(JSON.stringify(results));
-
-    var classify;
-
-    try{
-        classify = await cohere.classify({
-            model: '7939a9db-b48e-414c-93d6-7876d475061f-ft',
-            inputs: results.rows.map(each => each["TITLE"]).slice(0,96)
-        });
-
-        console.log(JSON.stringify(classify));
-    } catch(ex){
-        console.log(ex.message);
-    }
-    await conn.commit();
+    const results = await conn.execute(`select * from ORAHACKS_SCRAPING where UPPER("LABEL") like '%${lbl.toUpperCase()}%' and  UPPER("CLASSIFICATION") like '%${class_type.toUpperCase()}%'`, []);
 
     await conn.close();
 
-    return classify;
+    return results.rows;
 }
 
 module.exports = {

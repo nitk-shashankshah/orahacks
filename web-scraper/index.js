@@ -47,17 +47,12 @@ app.use(bodyParser.json()); // Parse JSON request bodies
 // 🔹 **Client API Routes**
 app.use('/api/clients', clientRoutes);
 
-// 🔹 **Scraping API Endpoints**
-app.get("/opportunities", async (req, res) => {
-    try {
-        var ls = await classifyData(req.query.label);
-        console.log(JSON.stringify(ls));
-        res.json(ls);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Error fetching opportunities" });
-    }
-});
+// Handling GET /hello request
+app.get("/classify", cors(corsOptions), async (req, res, next) => {
+    var ls = await classifyData(req.query.label, req.query.classification);
+    console.log(JSON.stringify(ls));
+    res.send(JSON.stringify(ls));
+})
 
 app.get("/load/railway", async (req, res) => {
     try {
