@@ -24,121 +24,140 @@ async function db_connect() {
 }
 
 async function yahoo() {
-  const base_url = "https://finance.yahoo.com";
-  const page_url = `${base_url}`;
-  console.log("Fetching main page:", page_url);
+    const base_url = "https://finance.yahoo.com";
+    const page_url = `${base_url}`;
+    console.log("Fetching main page:", page_url);
 
-  let axiosResponse;
-
-  const https = require("https");
-  const agent = new https.Agent({ maxHeaderSize: 32768 });
-
-  try {
-    axiosResponse = await axios.get(page_url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
-      },
-      timeout: 10000, // 10 seconds timeout
-      httpsAgent: agent,
-    });
-  } catch (error) {
-    if (error.response && error.response.status === 429) {
-      console.error("Rate limit exceeded. Try again later.");
-    } else {
-      console.error("Error fetching page:", error.message);
-    }
-    return;
-  }
-
-  const $ = cheerio.load(axiosResponse.data);
-
-  let menuLinks = [];
-
-  // Extracting menu links
-  $("li._yb_14z3wb2").each((index, element) => {
-    const menuText = $(element).attr("aria-label") || $(element).text().trim();
-    const menuLink = $(element).find("a").attr("href");
-
-    if (menuLink) {
-      const fullLink = menuLink.startsWith("http")
-        ? menuLink
-        : base_url + menuLink;
-      menuLinks.push({ name: menuText, link: fullLink });
-      console.log("Menu Link:", fullLink);
-    }
-  });
-
-  // Extracting headlines from each menu link
-  for (const { name, link } of menuLinks) {
-    console.log("\nScraping:", link);
-
-    let headlines = [];
-    await new Promise((r) => setTimeout(r, 2000)); // Adding 2s delay between requests
+    let axiosResponse;
+    const https = require("https");
+    const agent = new https.Agent({ maxHeaderSize: 32768 });
 
     try {
-      axiosResponse = await axios.get(link, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
-        },
-        timeout: 10000,
-      });
-
-      if (axiosResponse.data.length > 5000000) {
-        // 5MB response limit
-        console.warn("Warning: Response size exceeds limit. Skipping...");
-        continue;
-      }
-
-      const $ = cheerio.load(axiosResponse.data);
-
-      $('.titles h1, .titles h2, .titles h3').each((ind, el) => {
-        let obj = {
-          ttle: $(el).text().trim(),
-          lnk: link,
-          lbl: name.replace(/\//g, ""),
-        };
-        headlines.push(obj);
-      });
-      
-
-      console.log("Extracted Headlines:", headlines);
-    } catch (ex) {
-      console.log("Error fetching headlines:", ex.message);
-      continue;
+        axiosResponse = await axios.get(page_url, {
+            headers: {
+                "User-Agent":
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
+            },
+            timeout: 10000, // 10 seconds timeout
+            httpsAgent: agent,
+        });
+    } catch (error) {
+        console.error("Error fetching page:", error.message);
+        return;
     }
 
-    if (headlines.length > 0) {
-      try {
-        const conn = await db_connect();
-        const insertStatement = `INSERT INTO ORAHACKS_SCRAPING("TITLE","LABEL","LINK") VALUES(:ttle,:lbl,:lnk)`;
+    const $ = cheerio.load(axiosResponse.data);
 
-        const binds = headlines.map((each) => ({
-          ttle: each.ttle,
-          lnk: each.lnk,
-          lbl: each.lbl,
-        }));
+    let menuLinks = [];
 
-        const options = {
-          autoCommit: true,
-          bindDefs: {
-            ttle: { type: oracledb.STRING, maxSize: 5000 },
-            lbl: { type: oracledb.STRING, maxSize: 500 },
-            lnk: { type: oracledb.STRING, maxSize: 5000 },
-          },
-        };
+    // Extract menu links
+    $("li._yb_14z3wb2").each((index, element) => {
+        const menuText = $(element).attr("aria-label") || $(element).text().trim();
+        const menuLink = $(element).find("a").attr("href");
 
-        const results = await conn.executeMany(insertStatement, binds, options);
-        console.log("DB Insert Results:", results);
+        if (menuLink) {
+            const fullLink = menuLink.startsWith("http") ? menuLink : base_url + menuLink;
+            menuLinks.push({ name: menuText, link: fullLink });
+            console.log("Menu Link:", fullLink);
+        }
+    });
 
-        await conn.close();
-      } catch (ex) {
-        console.log("Database Error:", ex.message);
-      }
+    // Scrape headlines & content from each menu link
+    for (const { name, link } of menuLinks) {
+        console.log("\nScraping:", link);
+        let headlines = [];
+
+        await new Promise((r) => setTimeout(r, 2000)); // Adding delay between requests
+
+        try {
+            axiosResponse = await axios.get(link, {
+                headers: {
+                    "User-Agent":
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
+                },
+                timeout: 10000,
+            });
+
+            if (axiosResponse.data.length > 5000000) {
+                console.warn("Warning: Response size exceeds limit. Skipping...");
+                continue;
+            }
+
+            const $ = cheerio.load(axiosResponse.data);
+
+            $(".titles h1, .titles h2, .titles h3").each(async (ind, el) => {
+                let obj = {
+                    ttle: $(el).text().trim(),
+                    lnk: link,
+                    lbl: name.replace(/\//g, ""),
+                    content: "",
+                };
+
+                // Fetch article content
+                try {
+                    const articleResponse = await axios.get(obj.lnk, {
+                        headers: {
+                            "User-Agent":
+                                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
+                        },
+                        timeout: 10000,
+                    });
+
+                    const $_page = cheerio.load(articleResponse.data);
+                    let all_content = [];
+
+                    $_page(".caas-body p").each((ind, dt) => {
+                        all_content.push($(dt).text().trim());
+                    });
+
+                    obj.content = all_content.join(" ");
+                } catch (contentError) {
+                    console.log("Error fetching article content:", contentError.message);
+                }
+
+                headlines.push(obj);
+            });
+
+            console.log("Extracted Headlines:", headlines);
+        } catch (ex) {
+            console.log("Error fetching headlines:", ex.message);
+            continue;
+        }
+
+        // Insert into the database
+        if (headlines.length > 0) {
+            try {
+                const conn = await db_connect();
+                const insertStatement = `INSERT INTO ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT") VALUES(:ttle,:lbl,:lnk,:content)`;
+
+                const binds = headlines.map((each) => ({
+                    ttle: each.ttle.substr(0, 5000),
+                    lnk: each.lnk,
+                    lbl: each.lbl,
+                    content: each.content.substr(0, 10000),
+                }));
+
+                const options = {
+                    autoCommit: true,
+                    bindDefs: {
+                        ttle: { type: oracledb.STRING, maxSize: 5000 },
+                        lbl: { type: oracledb.STRING, maxSize: 500 },
+                        lnk: { type: oracledb.STRING, maxSize: 5000 },
+                        content: { type: oracledb.STRING, maxSize: 10000 },
+                    },
+                };
+
+                const results = await conn.executeMany(insertStatement, binds, options);
+                console.log("DB Insert Results:", results);
+
+                await conn.close();
+            } catch (ex) {
+                console.log("Database Error:", ex.message);
+            }
+        }
     }
-  }
 }
+
 
 async function classifyData() {
   var conn = await db_connect();

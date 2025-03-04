@@ -24,99 +24,103 @@ async function db_connect() {
 }
 
 async function cnn() {
-    const base_url = "https://edition.cnn.com";
-    const page_url = `${base_url}`;
+  const base_url = "https://edition.cnn.com";
+  const page_url = `${base_url}`;
 
-    console.log("Fetching main page:", page_url);
+  console.log("Fetching main page:", page_url);
 
-    let axiosResponse;
+  let axiosResponse;
+  try {
+    axiosResponse = await axios.get(page_url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching  page:", error.message);
+    return;
+  }
+
+  const $ = cheerio.load(axiosResponse.data);
+  let menuLinks = [];
+
+  // Extracting menu links
+  $(".header__nav-item").each((index, element) => {
+    const menuText = $(element).attr("aria-label") || $(element).text().trim();
+    const menuLink = $(element).find("a").attr("href");
+
+    if (menuLink) {
+      const fullLink = menuLink.startsWith("http")
+        ? menuLink
+        : base_url + menuLink;
+      menuLinks.push({ name: menuText, link: fullLink });
+      console.log("Menu Link:", fullLink);
+    }
+  });
+
+  // Extracting headlines from each menu link
+  for (const { name, link } of menuLinks) {
+    console.log("\nScraping:", link);
+
+    let headlines = [];
+
     try {
-        axiosResponse = await axios.get(page_url, {
-            headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
-            },
-        });
-    } catch (error) {
-        console.error("Error fetching  page:", error.message);
-        return;
+      axiosResponse = await axios.get(link, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
+        },
+      });
+
+      const $ = cheerio.load(axiosResponse.data);
+
+      // Using `data-testid="headline"` to extract headlines
+      $(".container__headline-text").each((ind, el) => {
+        let obj = {
+          ttle: $(el).text().trim(),
+          lnk: link,
+          lbl: name.replace(/\//g, ""),
+        };
+        headlines.push(obj);
+      });
+
+      console.log("Extracted Headlines:", headlines);
+    } catch (ex) {
+      console.log("Error fetching headlines:", ex.message);
+      continue;
     }
 
-    const $ = cheerio.load(axiosResponse.data);
-    let menuLinks = [];
+    // Insert extracted headlines into Oracle DB
+    if (headlines.length > 0) {
+      try {
+        const conn = await db_connect();
 
-    // Extracting menu links
-    $(".header__nav-item").each((index, element) => {
-        const menuText = $(element).attr("aria-label") || $(element).text().trim();
-        const menuLink = $(element).find("a").attr("href");
+        const insertStatement = `INSERT INTO ORAHACKS_SCRAPING("TITLE","LABEL","LINK") VALUES(:ttle,:lbl,:lnk)`;
 
-        if (menuLink) {
-            const fullLink = menuLink.startsWith("http") ? menuLink : base_url + menuLink;
-            menuLinks.push({ name: menuText, link: fullLink });
-            console.log("Menu Link:", fullLink);
-        }
-    });
+        const binds = headlines.map((each) => ({
+          ttle: each.ttle,
+          lnk: each.lnk,
+          lbl: each.lbl,
+        }));
 
-    // Extracting headlines from each menu link
-    for (const { name, link } of menuLinks) {
-        console.log("\nScraping:", link);
+        const options = {
+          autoCommit: true,
+          bindDefs: {
+            ttle: { type: oracledb.STRING, maxSize: 5000 },
+            lbl: { type: oracledb.STRING, maxSize: 500 },
+            lnk: { type: oracledb.STRING, maxSize: 5000 },
+          },
+        };
 
-        let headlines = [];
+        const results = await conn.executeMany(insertStatement, binds, options);
+        console.log("DB Insert Results:", results);
 
-        try {
-            axiosResponse = await axios.get(link, {
-                headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
-                },
-            });
-
-            const $ = cheerio.load(axiosResponse.data);
-
-            // Using `data-testid="headline"` to extract headlines
-            $('.container__headline-text').each((ind, el) => {
-                let obj = {
-                    ttle: $(el).text().trim(),
-                    lnk: link,
-                    lbl: name.replace(/\//g, ""),
-                };
-                headlines.push(obj);
-            });
-
-            console.log("Extracted Headlines:", headlines);
-        } catch (ex) {
-            console.log("Error fetching headlines:", ex.message);
-            continue;
-        }
-
-        // Insert extracted headlines into Oracle DB
-        if (headlines.length > 0) {
-            try {
-                const conn = await db_connect();
-
-                const insertStatement = `INSERT INTO ORAHACKS_SCRAPING("TITLE","LABEL","LINK") VALUES(:ttle,:lbl,:lnk)`;
-
-                const binds = headlines.map(each => ({
-                    ttle: each.ttle,
-                    lnk: each.lnk,
-                    lbl: each.lbl,
-                }));
-
-                const options = {
-                    autoCommit: true,
-                    bindDefs: {
-                        ttle: { type: oracledb.STRING, maxSize: 5000 },
-                        lbl: { type: oracledb.STRING, maxSize: 500 },
-                        lnk: { type: oracledb.STRING, maxSize: 5000 },
-                    },
-                };
-
-                const results = await conn.executeMany(insertStatement, binds, options);
-                console.log("DB Insert Results:", results);
-
-                await conn.close();
-            } catch (ex) {
-                console.log("Database Error:", ex.message);
-            }
-        }
+        await conn.close();
+      } catch (ex) {
+        console.log("Database Error:", ex.message);
+      }
+    }
 
     try {
       var conn = await db_connect();
