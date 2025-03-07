@@ -67,105 +67,192 @@ async function scraper() {
             });
             const $ = cheerio.load(axiosResponse.data)
 
-            $(".Card-titleContainer").each((ind, el) => {
+            $(".Card-card").each((ind1,card)=>{
+
+                var images = $(card).find(".Card-imageContainer");
+                var titleContainers = $(card).find(".Card-titleContainer");
+
+                titleContainers.each((ind2, el) => {
                     var obj = {};
-                        $(el).find("a").each(async (ind, lnk) => {
-                            obj["ttle"] = $(lnk).html().trim();
-                            obj["lnk"] = $(lnk).attr("href");
-                            obj["lbl"] = page_each;
-                            let headlines = [];
+                    $(el).find("a").each(async (ind, lnk) => {
+                        obj["ttle"] = $(lnk).html().trim();
+                        obj["lnk"] = $(lnk).attr("href");
+                        obj["lbl"] = page_each;
+                        let headlines = [];
+
+                        var pics = $(images[ind]).find('picture');
+
+                        var img_lnk = '';
+                        pics.each((ind3,pic) => {
+                            $(pic).find('source').each((ind4,srce) => {
+                                if (ind4==0)
+                                    img_lnk = $(srce).attr('srcset');
+                            });
+                        });
+
+                        try{
+                            const pageResp = await axios.request({
+                                method: "GET",
+                                url: obj["lnk"],
+                                headers: {
+                                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+                                }
+                            });
+
+                            const $_page = cheerio.load(pageResp.data)
+                            var all_content = [];
+                            
+                            $_page(".ArticleBody-articleBody").each((ind2, el2) => {
+                                $(el2).find("p").each(async (ind, dt) => {
+                                    all_content.push($(dt).html());
+                                });
+                            });
+
+                            obj["content"] = all_content.join();
 
                             try{
-                                const pageResp = await axios.request({
-                                    method: "GET",
-                                    url: obj["lnk"],
-                                    headers: {
-                                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+                                if (obj["content"])
+                                    obj["content"] = await summarizeText(obj["content"]);
+                                else 
+                                    return;
+                            } catch(ex){
+                                //console.log(ex.message);
+                            }
+
+                            console.log("__________________________________________________________");
+                            console.log(obj["content"]);
+                            console.log(img_lnk);                                            
+                            
+                            var prediction = 'OPPORTUNITY';
+                            //if (obj["content"] && obj["content"].trim())
+                                //prediction = await classifyData(obj["content"]);
+
+                            headlines.push(obj);
+
+                            try{
+                                var conn = await db_connect();
+                    
+                                console.log(JSON.stringify(headlines));
+                    
+                                var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink)`;
+                    
+                                var binds = headlines.map((each, idx) => ({
+                                    ttle: each.ttle.substr(0,5000),
+                                    lnk: each.lnk,
+                                    imgLink: img_lnk,
+                                    lbl: each.lbl.replace(/\//g,''),
+                                    content: each.content.replace(/\'/g,'').replace(/\"/g,'').replace(/\`/g,'').substr(0,10000),
+                                    prediction: prediction
+                                }));            
+                    
+                                console.log(JSON.stringify(binds));
+                    
+                                var options = {
+                                    autoCommit: false,
+                                    bindDefs: {
+                                        ttle: { type: oracledb.STRING, maxSize: 5000 },
+                                        lbl: { type: oracledb.STRING, maxSize: 500 },
+                                        lnk: { type: oracledb.STRING, maxSize: 5000 },
+                                        imgLink: { type: oracledb.STRING, maxSize: 5000 },
+                                        content: { type: oracledb.STRING, maxSize: 10000 },
+                                        prediction: { type: oracledb.STRING, maxSize: 500 }
                                     }
-                                });
-
-                                const $_page = cheerio.load(pageResp.data)
-                                var all_content = [];
-                                
-                                $_page(".ArticleBody-articleBody").each((ind2, el2) => {
-                                    $(el2).find("p").each(async (ind, dt) => {
-                                        all_content.push($(dt).html());
-                                    });
-                                });
-
-                                obj["content"] = all_content.join();
-
-                                try{
-                                    if (obj["content"])
-                                        obj["content"] = await summarizeText(obj["content"]);
-                                } catch(ex){
-                                    //console.log(ex.message);
+                                };
+                                    
+                                if (binds.length){
+                                    var results = await conn.executeMany(insertStatement, binds, options);            
+                                    console.log(JSON.stringify(results));
                                 }
-
-                                console.log("__________________________________________________________");
-                                console.log(obj["content"]);
-                                
-                                var prediction = await classifyData(obj["content"]);
-
-                                headlines.push(obj);
-
-                                try{
-                                    var conn = await db_connect();
-                        
-                                    console.log(JSON.stringify(headlines));
-                        
-                                    var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION") values(:ttle,:lbl,:lnk,:content,:prediction)`;
-                        
-                                    var binds = headlines.map((each, idx) => ({
-                                        ttle: each.ttle.substr(0,5000),
-                                        lnk: each.lnk,
-                                        lbl: each.lbl.replace(/\//g,''),
-                                        content: each.content.replace(/\'/g,'').replace(/\"/g,'').replace(/\`/g,'').substr(0,10000),
-                                        prediction: prediction
-                                    }));            
-                        
-                                    console.log(JSON.stringify(binds));
-                        
-                                    var options = {
-                                        autoCommit: false,
-                                        bindDefs: {
-                                            ttle: { type: oracledb.STRING, maxSize: 5000 },
-                                            lbl: { type: oracledb.STRING, maxSize: 500 },
-                                            lnk: { type: oracledb.STRING, maxSize: 5000 },
-                                            content: { type: oracledb.STRING, maxSize: 10000 },
-                                            prediction: { type: oracledb.STRING, maxSize: 500 }
-                                        }
-                                    };
-                                        
-                                    if (binds.length){
-                                        var results = await conn.executeMany(insertStatement, binds, options);            
-                                        console.log(JSON.stringify(results));
-                                    }
-                        
-                                    await conn.commit();
-                        
-                                    await conn.close();
-                                } catch(ex) {
-                                    console.log(ex.message);
-                                }
-
+                    
+                                await conn.commit();
+                    
+                                await conn.close();
                             } catch(ex) {
                                 console.log(ex.message);
                             }
-                        });                       
-            });    
+
+                        } catch(ex) {
+                            console.log(ex.message);
+                        }
+                    });
+                });
+            });           
         } catch(ex){
             console.log(ex.message);
-        }
+        }    
+    }
+    //return classify;
+}
 
-     
+
+async function classification() {
+    // downloading the target web page
+    // by performing an HTTP GET request in Axios
+
+    var conn = await db_connect();
+                               
+    var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%cnbc%'`;
+    
+    const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+   
+    await conn.close();                            
+
+    for (var i=0;i<results.rows.length;i++){
+        var ls = results.rows.map(each=>each["CONTENT"]).slice(i,i+96);
+        predictions = await classifyData(ls);
+
+        console.log("predictions:" + JSON.stringify(predictions));
+        console.log(JSON.stringify(results.rows.slice(i,i+96).map(each => each["LINK"])));
+
+        await updateAnalyticsDetails(results.rows.slice(i,i+96).map(each => each["LINK"]), predictions);
+        i+=96;
     }
 
     //return classify;
 }
 
+async function updateAnalyticsDetails(lnks, predictions) {
+    // downloading the target web page
+    // by performing an HTTP GET request in Axios
+
+    var conn = await db_connect();                               
+
+    var updateStatement = `update ORAHACKS_SCRAPING set "CLASSIFICATION"=:prediction where "LINK"=:lnk`;
+                    
+    var binds = [];
+
+    var idx =0;
+    for (var each of lnks){
+        binds.push({
+            lnk: each,
+            prediction: predictions[idx]
+        });
+        idx++;
+    }
+
+    console.log("binds: " + JSON.stringify(binds));
+
+    var options = {
+        autoCommit: false,
+        bindDefs: {           
+            lnk: { type: oracledb.STRING, maxSize: 5000 },
+            prediction: { type: oracledb.STRING, maxSize: 500 }
+        }
+    };
+        
+    if (binds.length){
+        var results = await conn.executeMany(updateStatement, binds, options);            
+        console.log(JSON.stringify(results));
+    }
+
+    await conn.commit();
+
+    await conn.close();                            
+    //return classify;
+}
+
 module.exports = {
     scraper : scraper,
-    classifyData: classifyData,
+    classification: classification,
     db_connect: db_connect
 }
