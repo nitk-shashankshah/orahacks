@@ -19,7 +19,7 @@ if (!process.execArgv.some(arg => arg.startsWith("--max-http-header-size="))) {
 
 var cors = require('cors');
 var { railwayScraping, classifyData, db_connect }  = require('./railway/railway'); 
-var { scraper }  = require('./cnbc/cnbc'); 
+var { scraper, classification }  = require('./cnbc/cnbc'); 
 var { bloomberg }  = require('./bloomberg/blommberg'); 
 var { yahoo }  = require('./yahoo/yahoo'); 
 var { insider }  = require('./insider/insider'); 
@@ -57,9 +57,9 @@ app.get("/load/railway", cors(corsOptions), async (req, res, next) => {
 
 // Handling GET /hello request
 app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
-    var ls = await scraper();
-    console.log(JSON.stringify(ls));
-    res.send(JSON.stringify(ls));
+    //var ls = await scraper();
+    var cls = await classification();
+    res.send(JSON.stringify({}));
 })
 
 // Handling GET /hello request
@@ -112,6 +112,6 @@ app.get("/load/wsj", cors(corsOptions), async (req, res, next) => {
     res.send(JSON.stringify(ls));
 })
 // Server setup
-app.listen(3000, () => {
+app.listen(3001, () => {
     console.log("Server is Running")
 })
