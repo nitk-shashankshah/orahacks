@@ -25,7 +25,7 @@ async function db_connect(){
     return connection;
 }
 
-async function scraper() {
+async function cnbc_scraper() {
     // downloading the target web page
     // by performing an HTTP GET request in Axios
 
@@ -49,7 +49,6 @@ async function scraper() {
             pages.push($(lnk).attr("href"));
         });
     });
-
 
     console.log(JSON.stringify(pages));
 
@@ -80,7 +79,7 @@ async function scraper() {
                         obj["lbl"] = page_each;
                         let headlines = [];
 
-                        var pics = $(images[ind]).find('picture');
+                        var pics = $(images[ind2]).find('picture');
 
                         var img_lnk = '';
                         pics.each((ind3,pic) => {
@@ -185,7 +184,7 @@ async function scraper() {
 }
 
 
-async function classification() {
+async function cnbc_classification() {
     // downloading the target web page
     // by performing an HTTP GET request in Axios
 
@@ -252,7 +251,7 @@ async function updateAnalyticsDetails(lnks, predictions) {
 }
 
 module.exports = {
-    scraper : scraper,
-    classification: classification,
+    cnbc_scraper : cnbc_scraper,
+    cnbc_classification: cnbc_classification,
     db_connect: db_connect
 }
