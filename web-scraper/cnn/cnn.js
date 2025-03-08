@@ -24,7 +24,8 @@ async function db_connect() {
 
 async function cnn() {
     const base_url = "https://edition.cnn.com";
-    const page_url = "https://edition.cnn.com/business";
+
+    for (var page_url of ["https://edition.cnn.com/health"]){ //,"https://edition.cnn.com/sport","https://edition.cnn.com/business"]){
 
     console.log("Fetching main page:", page_url);
 
@@ -42,7 +43,7 @@ async function cnn() {
 
     const $ = cheerio.load(axiosResponse.data);
     let menuLinks = [];
-
+    menuLinks.push({"name":"health","link":page_url});
     // Extracting menu links
     $(".header__nav-item").each((index, element) => {
         const menuText = $(element).attr("aria-label") || $(element).text().trim();
@@ -195,10 +196,9 @@ async function cnn() {
             //console.log("Error fetching headlines:", ex.message);
             //continue;
         }
-
+      }
         // Insert extracted headlines into Oracle DB
   }
-
   //return classify;
 }
 
