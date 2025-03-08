@@ -10,7 +10,8 @@ const classifyData = async (summaryLs) => {
     });
   
     const classify = await cohere.classify({
-      model: "917a6b23-48d7-4064-9610-f412ba6cec38-ft",
+      //model: "917a6b23-48d7-4064-9610-f412ba6cec38-ft",
+      model: "e85f034f-04da-4779-b730-4084dae2e2f3-ft",
       inputs: summaryLs,
     });
   

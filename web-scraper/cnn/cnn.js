@@ -202,14 +202,16 @@ async function cnn() {
   //return classify;
 }
 
-async function cnn_classification() {
+async function cnn_classification(lbl) {
   // downloading the target web page
   // by performing an HTTP GET request in Axios
 
   var conn = await db_connect();
                              
-  var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%cnn%'`;
+  var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%cnn%' and LOWER("LABEL") like '%${lbl}%'`;
   
+  console.log(selectStatement);
+
   const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
  
   await conn.close();                            
