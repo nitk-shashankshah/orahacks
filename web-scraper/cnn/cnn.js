@@ -108,7 +108,7 @@ async function cnn() {
   
     // Extracting headlines from each menu link
     for (const { name, link } of menuLinks) {
-        //console.log("\nScraping:", link);
+        console.log("\nScraping:", link);
 
         try {
             axiosResponse = await axios.get(link, {
@@ -117,115 +117,134 @@ async function cnn() {
                 },
             });
 
-
             const $ = cheerio.load(axiosResponse.data);
 
-            // Using `data-testid="headline"` to extract headlines
-            $('.container__headline-text').each(async (ind, el) => {
+            $(".card").each(async (ind1,card)=>{
 
-                //console.log(base_url+$(el).parent().parent().parent().attr("href"));
+              var images = $(card).find(".image__container");
+              var titleContainers = $(card).find(".container__headline-text");
 
-                let obj = {
-                    ttle: $(el).text().trim(),
-                    lnk: base_url+$(el).parent().parent().parent().attr("href"),
-                    lbl: name.replace(/\//g, ""),
-                };
+              titleContainers.each(async (ind2, el) => {
+                      let headlines = [];
 
-                try{
+                      var pics = $(images[ind2]).find('picture');
 
-                    let headlines = [];
-
-                    const pageResp = await axios.request({
-                      method: "GET",
-                      url: obj["lnk"],
-                      headers: {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
-                      }
-                    });
-
-                    const $_page = cheerio.load(pageResp.data)
-                    var all_content = [];
-                                
-                    //console.log("length: " +$_page(".article__content-container").length);
-
-                    $_page(".article__content-container").each((ind2, el2) => {
-                      $(el2).find("p").each((ind, dt) => {
-                          all_content.push($(dt).html().trim());
+                      var img_lnk = '';
+                      pics.each((ind3,pic) => {
+                          $(pic).find('source').each((ind4,srce) => {
+                              if (ind4==0)
+                                  img_lnk = $(srce).attr('srcset');
+                          });
                       });
-                    });
 
-                    obj["content"] = all_content.join().replace(/\'/g,'').replace(/\”/g,'').toString().substring(0,10000);
-                    
-                    var summary = "";
-                    var prediction = "";
-                    try{
-                      if (obj["content"]){
-                        summary = await summarizeText(obj["content"]);
-                        console.log("______________________________");
-                        console.log(summary);
-                        prediction = await classifyData(summary);
-                        console.log(JSON.stringify(prediction));
-                      }
-                    } catch(ex){
-                      //console.log(ex.message);
-                    }
-                    obj["content"] = summary;
+                      console.log(img_lnk);
 
-                    headlines.push(obj);
+                      //console.log($(el).text().trim());
 
-                    if (headlines.length > 0) {
-                      try {
-                      var conn = await db_connect();
-            
-                      //console.log(JSON.stringify(headlines));
-
-                      var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION") values(:ttle,:lbl,:lnk,:content,:prediction)`;
-            
-                      var binds = headlines.map((each, idx) => ({
-                        ttle: each.ttle.substring(0,5000),
-                        lbl: each.lbl.replace(/\//g,''),
-                        lnk: each.lnk,
-                        content: summary.replace(/\'/g,'').replace(/\`/g,''),
-                        prediction: prediction
-                      }));
-            
-                      console.log(JSON.stringify(binds));
-            
-                      var options = {
-                        autoCommit: false,
-                        bindDefs: {
-                          ttle: { type: oracledb.STRING, maxSize: 5000 },
-                          lbl: { type: oracledb.STRING, maxSize: 500 },
-                          lnk: { type: oracledb.STRING, maxSize: 5000 },
-                          content: { type: oracledb.STRING, maxSize: 10000 },
-                          prediction:  { type: oracledb.STRING, maxSize: 100 }
-                        },
+                      let obj = {
+                        ttle: $(el).text().trim(),
+                        lnk: base_url+$(el).parent().parent().parent().attr("href"),
+                        lbl: name.replace(/\//g, ""),
+                        imageLink: img_lnk
                       };
-            
-                      var results = await conn.executeMany(insertStatement, binds, options);
-            
-                      console.log(JSON.stringify(results));
-            
-                      await conn.commit();
-            
-                      await conn.close();
-            
-                      return;
-                    } catch (ex) {
-                      //console.log(ex.message);
-                    }
-                  }
 
-                } catch(ex) {
-                    //console.log(ex.message);
-                }
+                      try{
+                          const pageResp = await axios.request({
+                            method: "GET",
+                            url: obj["lnk"],
+                            headers: {
+                              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+                            }
+                          });
+
+                          const $_page = cheerio.load(pageResp.data)
+                          var all_content = [];
+                                      
+                          //console.log("length: " +$_page(".article__content-container").length);
+
+                          $_page(".article__content-container").each((ind2, el2) => {
+                            $(el2).find("p").each((ind, dt) => {
+                                all_content.push($(dt).html().trim());
+                            });
+                          });
+
+                          obj["content"] = all_content.join().replace(/\'/g,'').replace(/\”/g,'').toString().substring(0,10000);
+                          
+                          var summary = "";
+                          //var prediction = "";
+                          try{
+                            if (obj["content"]){
+                              summary = await summarizeText(obj["content"]);
+                              //console.log("______________________________");
+                              //prediction = await classifyData(summary);
+                              //console.log(JSON.stringify(prediction));
+                              obj["content"] = summary;
+                              headlines.push(obj);    
+                            }
+                          } catch(ex){
+                            //console.log(ex.message);
+                          }                                          
+                      } catch(ex) {
+                          //console.log(ex.message);
+                      }                      
+                      
+                      console.log("headlines : " +headlines.length);
+
+                      if (headlines.length > 0) {
+                        try {
+                              var conn = await db_connect();
+                    
+                              console.log(JSON.stringify(headlines));
+              
+                              var prediction = 'OPPORTUNITY';
+              
+                              var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink)`;
+                    
+                              var binds = headlines.map((each, idx) => ({
+                                ttle: each.ttle.substring(0,5000),
+                                lbl: each.lbl.replace(/\//g,''),
+                                lnk: each.lnk,
+                                content: summary.replace(/\'/g,'').replace(/\`/g,''),
+                                prediction: prediction,
+                                imgLink: each.imageLink
+                              }));
+                    
+                              console.log(JSON.stringify(binds));
+                    
+                              var options = {
+                                autoCommit: false,
+                                bindDefs: {
+                                  ttle: { type: oracledb.STRING, maxSize: 5000 },
+                                  lbl: { type: oracledb.STRING, maxSize: 500 },
+                                  lnk: { type: oracledb.STRING, maxSize: 5000 },
+                                  content: { type: oracledb.STRING, maxSize: 10000 },
+                                  prediction:  { type: oracledb.STRING, maxSize: 100 },
+                                  imgLink: { type: oracledb.STRING, maxSize: 5000 }
+                                }
+                              };
+                    
+                              var results = await conn.executeMany(insertStatement, binds, options);
+                    
+                              console.log(JSON.stringify(results));
+                    
+                              await conn.commit();
+                    
+                              await conn.close();
+                    
+                        } catch (ex) {
+                              //console.log(ex.message);
+                        }
+                      }
+              });
 
             });
 
 
+
+
         } catch (ex) {
             //console.log("Error fetching headlines:", ex.message);
-            continue;
+            //continue;
         }
 
         // Insert extracted headlines into Oracle DB
@@ -236,8 +255,74 @@ async function cnn() {
   //return classify;
 }
 
+async function cnn_classification() {
+  // downloading the target web page
+  // by performing an HTTP GET request in Axios
+
+  var conn = await db_connect();
+                             
+  var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%cnn%'`;
+  
+  const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+ 
+  await conn.close();                            
+
+  for (var i=0;i<results.rows.length;i++){
+      var ls = results.rows.map(each=>each["CONTENT"]).slice(i,i+96);
+      predictions = await classifyData(ls);
+
+      console.log("predictions:" + JSON.stringify(predictions));
+      console.log(JSON.stringify(results.rows.slice(i,i+96).map(each => each["LINK"])));
+
+      await updateAnalyticsDetails(results.rows.slice(i,i+96).map(each => each["LINK"]), predictions);
+      i+=96;
+  }
+
+  //return classify;
+}
+
+async function updateAnalyticsDetails(lnks, predictions) {
+  // downloading the target web page
+  // by performing an HTTP GET request in Axios
+
+  var conn = await db_connect();                               
+
+  var updateStatement = `update ORAHACKS_SCRAPING set "CLASSIFICATION"=:prediction where "LINK"=:lnk`;
+                  
+  var binds = [];
+
+  var idx =0;
+  for (var each of lnks){
+      binds.push({
+          lnk: each,
+          prediction: predictions[idx]
+      });
+      idx++;
+  }
+
+  console.log("binds: " + JSON.stringify(binds));
+
+  var options = {
+      autoCommit: false,
+      bindDefs: {           
+          lnk: { type: oracledb.STRING, maxSize: 5000 },
+          prediction: { type: oracledb.STRING, maxSize: 500 }
+      }
+  };
+      
+  if (binds.length){
+      var results = await conn.executeMany(updateStatement, binds, options);            
+      console.log(JSON.stringify(results));
+  }
+
+  await conn.commit();
+
+  await conn.close();                            
+  //return classify;
+}
 
 module.exports = {
   cnn: cnn,
   db_connect: db_connect,
+  cnn_classification: cnn_classification
 };

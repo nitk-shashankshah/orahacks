@@ -15,7 +15,22 @@ if (!process.execArgv.some(arg => arg.startsWith("--max-http-header-size="))) {
     return;
 }
 
-require("dotenv").config();
+
+var cors = require('cors');
+var { railwayScraping, classifyData, db_connect }  = require('./railway/railway'); 
+var { cnbc_scraper, cnbc_classification }  = require('./cnbc/cnbc'); 
+var { cnn, cnn_classification }  = require('./cnn/cnn'); 
+
+var { bloomberg }  = require('./bloomberg/blommberg'); 
+var { yahoo }  = require('./yahoo/yahoo'); 
+var { insider }  = require('./insider/insider'); 
+var { marketwatch }  = require('./marketwatch/marketwatch'); 
+var { wsj }  = require('./wsj/wsj'); 
+var {forbes} = require("./forbes/forbes");
+
+var transportScraping = require('./transport'); 
+
+// Importing express module
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -65,16 +80,12 @@ app.get("/load/railway", async (req, res) => {
     }
 });
 
-app.get("/load/cnbc", async (req, res) => {
-    try {
-        var ls = await scraper();
-        console.log(JSON.stringify(ls));
-        res.json(ls);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Error loading CNBC data" });
-    }
-});
+// Handling GET /hello request
+app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
+    //var ls = await cnbc_scraper();
+    var cls = await cnbc_classification();
+    res.send(JSON.stringify({}));
+})
 
 app.get("/load/forbes", async (req, res) => {
     try {
@@ -120,16 +131,12 @@ app.get("/load/insider", async (req, res) => {
     }
 });
 
-app.get("/load/cnn", async (req, res) => {
-    try {
-        var ls = await cnn();
-        console.log(JSON.stringify(ls));
-        res.json(ls);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Error loading CNN data" });
-    }
-});
+// Handling GET /hello request
+app.get("/load/cnn", cors(corsOptions), async (req, res, next) => {
+    //var ls = await cnn();
+    var cls = await cnn_classification();
+    res.send(JSON.stringify(cls));
+})
 
 app.get("/load/marketwatch", async (req, res) => {
     try {
@@ -153,8 +160,13 @@ app.get("/load/wsj", async (req, res) => {
     }
 });
 
-// 🔹 **Start Server**
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`✅ Server running on port ${PORT}`);
-});
+// Handling GET /hello request
+app.get("/load/wsj", cors(corsOptions), async (req, res, next) => {
+    var ls = await wsj();
+    console.log(JSON.stringify(ls));
+    res.send(JSON.stringify(ls));
+})
+// Server setup
+app.listen(3001, () => {
+    console.log("Server is Running")
+})
