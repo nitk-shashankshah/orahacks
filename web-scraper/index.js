@@ -4,7 +4,7 @@
 if (!process.execArgv.some(arg => arg.startsWith("--max-http-header-size="))) {
     const { spawn } = require("child_process");
     const args = process.argv.slice(1);
-    args.unshift("--max-http-header-size=32768");
+    args.unshift("--max-http-header-size=1684");
     const child = spawn(process.execPath, args, {
       stdio: "inherit",
       env: process.env
@@ -41,7 +41,7 @@ const app = express();
 let corsOptions = {
     origin: ["*"]
 };
-app.use(cors(corsOptions));
+app.use(cors()); // Apply CORS middleware before routes
 app.use(bodyParser.json()); // Parse JSON request bodies
 
 // 🔹 **Client API Routes**

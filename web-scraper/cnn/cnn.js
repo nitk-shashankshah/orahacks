@@ -102,8 +102,10 @@ async function cnn() {
             menuLinks.push({ name: menuText, link: fullLink });
             //console.log("Menu Link:", fullLink);
         }
-    });
-    
+    }
+  catch (ex) {
+    console.log("Error fetching headlines:", ex.message);}
+  
     // Extracting headlines from each menu link
     for (const { name, link } of menuLinks) {
         //console.log("\nScraping:", link);
@@ -227,6 +229,8 @@ async function cnn() {
         }
 
         // Insert extracted headlines into Oracle DB
+  }
+}
   }
 
   //return classify;
