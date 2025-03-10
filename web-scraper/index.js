@@ -93,8 +93,8 @@ app.get("/load/insider", cors(corsOptions), async (req, res, next) => {
 
 // Handling GET /hello request
 app.get("/load/cnn", cors(corsOptions), async (req, res, next) => {
-    //var ls = await cnn();
-    var cls = await cnn_classification(req.query.label);
+    var ls = await cnn();
+    //var cls = await cnn_classification(req.query.label);
     res.send(JSON.stringify(cls));
 })
 

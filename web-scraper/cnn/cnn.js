@@ -25,7 +25,7 @@ async function db_connect() {
 async function cnn() {
     const base_url = "https://edition.cnn.com";
 
-    for (var page_url of ["https://edition.cnn.com/health"]){ //,"https://edition.cnn.com/sport","https://edition.cnn.com/business"]){
+    for (var page_url of ["https://edition.cnn.com/sport"]){ //"https://edition.cnn.com/health","https://edition.cnn.com/business"]){
 
     console.log("Fetching main page:", page_url);
 
@@ -43,7 +43,7 @@ async function cnn() {
 
     const $ = cheerio.load(axiosResponse.data);
     let menuLinks = [];
-    menuLinks.push({"name":"health","link":page_url});
+    menuLinks.push({"name":"sports","link":page_url});
     // Extracting menu links
     $(".header__nav-item").each((index, element) => {
         const menuText = $(element).attr("aria-label") || $(element).text().trim();
@@ -69,7 +69,7 @@ async function cnn() {
 
             const $ = cheerio.load(axiosResponse.data);
 
-            $(".card").each(async (ind1,card)=>{
+            $(".card").each((ind1,card)=>{
 
               var images = $(card).find(".image__container");
               var titleContainers = $(card).find(".container__headline-text");
@@ -136,7 +136,7 @@ async function cnn() {
                           }                                          
                       } catch(ex) {
                           //console.log(ex.message);
-                      }                      
+                      }
                       
                       console.log("headlines : " +headlines.length);
 

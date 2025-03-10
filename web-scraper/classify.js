@@ -11,7 +11,8 @@ const classifyData = async (summaryLs) => {
   
     const classify = await cohere.classify({
       //model: "917a6b23-48d7-4064-9610-f412ba6cec38-ft",
-      model: "e85f034f-04da-4779-b730-4084dae2e2f3-ft",
+      //model: "e85f034f-04da-4779-b730-4084dae2e2f3-ft",
+      model: "78b4cc0f-6c20-4c40-9689-14479245bfa8-ft",
       inputs: summaryLs,
     });
   
