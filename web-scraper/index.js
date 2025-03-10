@@ -67,7 +67,7 @@ app.get("/load/railway", cors(corsOptions), async (req, res, next) => {
 // Handling GET /hello request
 app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
     //var ls = await cnbc_scraper();
-    var cls = await cnbc_classification();
+    var cls = await cnbc_classification(req.query.label);
     res.send(JSON.stringify({}));
 })
 
@@ -101,8 +101,8 @@ app.get("/load/insider", cors(corsOptions), async (req, res, next) => {
 
 // Handling GET /hello request
 app.get("/load/cnn", cors(corsOptions), async (req, res, next) => {
-    //var ls = await cnn();
-    var cls = await cnn_classification();
+    var ls = await cnn();
+    //var cls = await cnn_classification(req.query.label);
     res.send(JSON.stringify(cls));
 })
 
