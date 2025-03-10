@@ -1,6 +1,3 @@
-// Filename - index.js
-
-
 // to increase the header size 
 if (!process.execArgv.some(arg => arg.startsWith("--max-http-header-size="))) {
     const { spawn } = require("child_process");
@@ -29,18 +26,29 @@ var { marketwatch }  = require('./marketwatch/marketwatch');
 var { wsj }  = require('./wsj/wsj'); 
 var {forbes} = require("./forbes/forbes");
 
+const clientRoutes = require("./src/routes/clientRoutes");
+const industryRoutes = require("./src/routes/industryRoutes");
+const widgetsRoutes = require("./src/routes/widgetsRoutes");
+const clientParamsRoutes = require("./src/routes/clientParamsRoutes");
+
 var transportScraping = require('./transport'); 
 
-// Importing express module
 const express = require("express");
 const app = express()
 
-// CORS is enabled for the selected origins
 let corsOptions = {
     origin: [ '*' ]
 };
 
 app.use(cors());
+
+app.use(express.json()); 
+
+app.use("/api/clients", clientRoutes);
+app.use("/api/industry", industryRoutes); 
+app.use("/api/allwidgets", widgetsRoutes); 
+app.use("/api/client-params", clientParamsRoutes);
+
 
 // Handling GET /hello request
 app.get("/classify", cors(corsOptions), async (req, res, next) => {
