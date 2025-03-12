@@ -44,10 +44,11 @@ async function cnbc_scraper() {
     });
     const $ = cheerio.load(axiosResponse.data)
 
-    $(".nav-menu-primaryLink").each((ind, el) => {
-        $(el).find("a").each(async (ind, lnk) => {
-            pages.push($(lnk).attr("href"));
-        });
+    $(".nav-menu-subLink").each((ind, el) => {
+        console.log($(el).html());
+       // $(el).find("a").each(async (ind, lnk) => {
+        pages.push($(el).attr("href"));
+       // });
     });
 
     console.log(JSON.stringify(pages));
@@ -124,7 +125,7 @@ async function cnbc_scraper() {
                             
                             var prediction = 'OPPORTUNITY';
                             //if (obj["content"] && obj["content"].trim())
-                                //prediction = await classifyData(obj["content"]);
+                            //prediction = await classifyData(obj["content"]);
 
                             headlines.push(obj);
 
@@ -133,7 +134,7 @@ async function cnbc_scraper() {
                     
                                 console.log(JSON.stringify(headlines));
                     
-                                var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink)`;
+                                var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK","MAJOR") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink,:major_label)`;
                     
                                 var binds = headlines.map((each, idx) => ({
                                     ttle: each.ttle.substr(0,5000),
@@ -141,7 +142,7 @@ async function cnbc_scraper() {
                                     imgLink: img_lnk,
                                     lbl: each.lbl.replace(/\//g,''),
                                     content: each.content.replace(/\'/g,'').replace(/\"/g,'').replace(/\`/g,'').substr(0,10000),
-                                    prediction: prediction
+                                    prediction: prediction,
                                 }));            
                     
                                 console.log(JSON.stringify(binds));
