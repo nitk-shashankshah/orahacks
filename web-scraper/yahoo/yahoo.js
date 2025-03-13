@@ -25,59 +25,52 @@ async function db_connect() {
 
 async function yahoo() {
   const base_url = "https://finance.yahoo.com";
-  const page_url = `${base_url}`;
-  console.log("Fetching main page:", page_url);
+  console.log("Fetching main page:", base_url);
 
-  let axiosResponse;
+  let menuLinks = [];
 
   const https = require("https");
   const agent = new https.Agent({ maxHeaderSize: 32768 });
 
   try {
-    axiosResponse = await axios.get(page_url, {
+    const axiosResponse = await axios.get(base_url, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
       },
-      timeout: 10000, // 10 seconds timeout
+      timeout: 10000,
       httpsAgent: agent,
     });
+
+    const $ = cheerio.load(axiosResponse.data);
+
+    // Extracting menu links
+    $("li._yb_14z3wb2").each((index, element) => {
+      const menuText =
+        $(element).attr("aria-label") || $(element).text().trim();
+      const menuLink = $(element).find("a").attr("href");
+
+      if (menuLink) {
+        const fullLink = menuLink.startsWith("http")
+          ? menuLink
+          : base_url + menuLink;
+        menuLinks.push({ name: menuText, link: fullLink });
+        console.log("Menu Link:", fullLink);
+      }
+    });
   } catch (error) {
-    if (error.response && error.response.status === 429) {
-      console.error("Rate limit exceeded. Try again later.");
-    } else {
-      console.error("Error fetching page:", error.message);
-    }
+    console.error("Error fetching Yahoo Finance:", error.message);
     return;
   }
 
-  const $ = cheerio.load(axiosResponse.data);
-
-  let menuLinks = [];
-
-  // Extracting menu links
-  $("li._yb_14z3wb2").each((index, element) => {
-    const menuText = $(element).attr("aria-label") || $(element).text().trim();
-    const menuLink = $(element).find("a").attr("href");
-
-    if (menuLink) {
-      const fullLink = menuLink.startsWith("http")
-        ? menuLink
-        : base_url + menuLink;
-      menuLinks.push({ name: menuText, link: fullLink });
-      console.log("Menu Link:", fullLink);
-    }
-  });
-
-  // Extracting headlines from each menu link
   for (const { name, link } of menuLinks) {
     console.log("\nScraping:", link);
 
     let headlines = [];
-    await new Promise((r) => setTimeout(r, 2000)); // Adding 2s delay between requests
+    await new Promise((r) => setTimeout(r, 2000)); // 2s delay to prevent rate limits
 
     try {
-      axiosResponse = await axios.get(link, {
+      const axiosResponse = await axios.get(link, {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
@@ -86,22 +79,75 @@ async function yahoo() {
       });
 
       if (axiosResponse.data.length > 5000000) {
-        // 5MB response limit
-        console.warn("Warning: Response size exceeds limit. Skipping...");
+        console.warn("Warning: Response size exceeds 5MB limit. Skipping...");
         continue;
       }
 
       const $ = cheerio.load(axiosResponse.data);
 
-      $('.titles h1, .titles h2, .titles h3').each((ind, el) => {
-        let obj = {
-          ttle: $(el).text().trim(),
-          lnk: link,
-          lbl: name.replace(/\//g, ""),
-        };
-        headlines.push(obj);
+      $(".titles h1, .titles h2, .titles h3").each((ind, el) => {
+        let parent = $(el).closest("section");
+        let articleLink = parent.find("a.subtle-link").attr("href");
+        let imageLink = parent.find("img").attr("src");
+
+        if (articleLink) {
+          let fullArticleLink = articleLink.startsWith("http")
+            ? articleLink
+            : base_url + articleLink;
+          let obj = {
+            title: $(el).text().trim(),
+            link: fullArticleLink,
+            imageLink: imageLink ? imageLink.trim() : "",
+            content: "",
+          };
+
+          headlines.push(obj);
+        }
       });
-      
+
+      try {
+        const pageResp = await axios.request({
+          method: "GET",
+          url: obj["lnk"],
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
+          },
+        });
+        const $_page = cheerio.load(pageResp.data);
+        var all_content = [];
+
+        $_page(".atoms-wrapper").each((ind2, el2) => {
+          $(el2)
+            .find("p")
+            .each((ind, dt) => {
+              all_content.push($(dt).html().trim());
+            });
+        });
+
+        obj["content"] = all_content
+          .join()
+          .replace(/\'/g, "")
+          .replace(/\”/g, "")
+          .toString()
+          .substring(0, 10000);
+
+        var summary = "";
+        //var prediction = "";
+        try {
+          if (obj["content"]) {
+            summary = await summarizeText(obj["content"]);
+            console.log("______________________________");
+            prediction = await classifyData(summary);
+            //console.log(JSON.stringify(prediction));
+            obj["content"] = summary;
+            headlines.push(obj);
+            console.log("---------------------------->:", summary);
+          }
+        } catch (ex) {
+          //console.log(ex.message);
+        }
+      } catch (ex) {}
 
       console.log("Extracted Headlines:", headlines);
     } catch (ex) {
@@ -109,23 +155,30 @@ async function yahoo() {
       continue;
     }
 
+    // Save data to database
     if (headlines.length > 0) {
       try {
         const conn = await db_connect();
-        const insertStatement = `INSERT INTO ORAHACKS_SCRAPING("TITLE","LABEL","LINK") VALUES(:ttle,:lbl,:lnk)`;
+        const insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink)`;
 
-        const binds = headlines.map((each) => ({
-          ttle: each.ttle,
+        var binds = headlines.map((each, idx) => ({
+          ttle: each.ttle.substring(0, 5000),
+          lbl: each.lbl.replace(/\//g, ""),
           lnk: each.lnk,
-          lbl: each.lbl,
+          content: summary.replace(/\'/g, "").replace(/\`/g, ""),
+          prediction: prediction,
+          imgLink: each.imageLink,
         }));
 
-        const options = {
-          autoCommit: true,
+        var options = {
+          autoCommit: false,
           bindDefs: {
             ttle: { type: oracledb.STRING, maxSize: 5000 },
             lbl: { type: oracledb.STRING, maxSize: 500 },
             lnk: { type: oracledb.STRING, maxSize: 5000 },
+            content: { type: oracledb.STRING, maxSize: 10000 },
+            prediction: { type: oracledb.STRING, maxSize: 100 },
+            imgLink: { type: oracledb.STRING, maxSize: 5000 },
           },
         };
 
@@ -141,9 +194,8 @@ async function yahoo() {
 }
 
 async function classifyData() {
-  var conn = await db_connect();
-
-  const results = await conn.execute("select * from ORAHACKS_SCRAPING", []);
+  const conn = await db_connect();
+  const results = await conn.execute("SELECT * FROM ORAHACKS_SCRAPING", []);
 
   console.log(JSON.stringify(results));
 
@@ -155,7 +207,6 @@ async function classifyData() {
   console.log(JSON.stringify(classify));
 
   await conn.commit();
-
   await conn.close();
 
   return classify;
