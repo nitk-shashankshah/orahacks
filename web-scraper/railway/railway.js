@@ -136,13 +136,31 @@ async function classifyData(lbl,class_type) {
 
     var conn = await db_connect();
 
-    console.log(`select * from ORAHACKS_SCRAPING where UPPER("LABEL") like '%${lbl.toUpperCase()}%' and  UPPER("CLASSIFICATION") like '%${class_type.toUpperCase()}%'`);
+    console.log(`select * from ORAHACKS_SCRAPING where UPPER("INDUSTRY") like '%${lbl.toUpperCase()}%' and  UPPER("CLASSIFICATION") like '%${class_type.toUpperCase()}%'`);
 
-    const results = await conn.execute(`select * from ORAHACKS_SCRAPING where UPPER("LABEL") like '%${lbl.toUpperCase()}%' and  UPPER("CLASSIFICATION") like '%${class_type.toUpperCase()}%'`, []);
+    const results = await conn.execute(`select * from ORAHACKS_SCRAPING where UPPER("INDUSTRY") like '%${lbl.toUpperCase()}%' and  UPPER("CLASSIFICATION") like '%${class_type.toUpperCase()}%'`, []);
+
+    var ls = results.rows.filter(each => {
+        var ls = []
+        if (each["INDUSTRY"]){
+            ls = each["INDUSTRY"].split(",");
+        }
+
+        console.log(JSON.stringify(ls));
+        
+        console.log(lbl.toUpperCase());
+
+        console.log(ls.indexOf(lbl.toUpperCase()));
+        
+        if (ls.indexOf(lbl.toUpperCase())>=0)
+            return true;
+
+        return false;
+    });
 
     await conn.close();
 
-    return results.rows;
+    return ls;
 }
 
 

@@ -16,7 +16,7 @@ if (!process.execArgv.some(arg => arg.startsWith("--max-http-header-size="))) {
 
 var cors = require('cors');
 var { railwayScraping, classifyData, createTraining, db_connect }  = require('./railway/railway'); 
-var { cnbc_scraper, cnbc_classification }  = require('./cnbc/cnbc'); 
+var { cnbc_scraper, cnbc_classification, cnbc_industry_classification }  = require('./cnbc/cnbc'); 
 var { cnn, cnn_classification }  = require('./cnn/cnn'); 
 
 var { bloomberg }  = require('./bloomberg/blommberg'); 
@@ -71,8 +71,9 @@ app.get("/load/railway", cors(corsOptions), async (req, res, next) => {
 
 // Handling GET /hello request
 app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
-    var ls = await cnbc_scraper();
-    //var cls = await cnbc_classification(req.query.label);
+    //var ls = await cnbc_scraper();
+    var cls = await cnbc_classification(req.query.label);
+    //var cls = await cnbc_industry_classification();
     res.send(JSON.stringify({}));
 })
 

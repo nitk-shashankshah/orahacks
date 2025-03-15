@@ -1,16 +1,11 @@
 const cheerio = require("cheerio")
 const axios = require("axios")
-var {CohereClientV2} = require("cohere-ai");
-//const cohere = require('cohere-ai');
 const oracledb = require('oracledb');
 const summarizeText = require('../summarize');
 const classifyData = require('../classify');
+const industryClassifyData = require('../industryClassify');
 
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
-
-const cohere = new CohereClientV2({
-    token: "2l7u7rXSsFSKEZBC6CGw87kg8iK7JyvadnUzV1Gf",
-});
 
 async function db_connect(){
     const connection = await oracledb.getConnection ({
@@ -188,33 +183,106 @@ async function cnbc_scraper() {
     //return classify;
 }
 
-
-async function cnbc_classification() {
+async function cnbc_industry_classification() {
     // downloading the target web page
     // by performing an HTTP GET request in Axios
 
     var conn = await db_connect();
                                
-    var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%cnbc%' and LOWER("LABEL") like '%health%'`;
+    var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://www.cnbc.com%'`;
     
     const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
    
-    await conn.close();                            
+    await conn.close();
 
     for (var i=0;i<results.rows.length;i++){
         var ls = results.rows.map(each=>each["CONTENT"]).slice(i,i+96);
-        predictions = await classifyData(ls);
+        
+        console.log(JSON.stringify(ls));
+        
+        let predictions = await industryClassifyData(ls);
 
         console.log("predictions:" + JSON.stringify(predictions));
-        console.log(JSON.stringify(results.rows.slice(i,i+96).map(each => each["LINK"])));
+        //console.log(JSON.stringify(results.rows.slice(i,i+96).map(each => each["LINK"])));
 
-        await updateAnalyticsDetails(results.rows.slice(i,i+96).map(each => each["LINK"]), predictions);
+        await updateIndustryDetails(results.rows.slice(i,i+96).map(each => each["LINK"]), predictions);
         i+=96;
+    }
+    //return classify;
+}
+
+async function updateIndustryDetails(lnks, industries) {
+    // downloading the target web page
+    // by performing an HTTP GET request in Axios
+
+    var conn = await db_connect();                               
+
+    var updateStatement = `update ORAHACKS_SCRAPING set "INDUSTRY"=:industry where "LINK"=:lnk`;
+                    
+    var binds = [];
+
+    var idx =0;
+    for (var each of lnks){
+        binds.push({
+            lnk: each,
+            industry: industries[idx]
+        });
+        idx++;
+    }
+
+    console.log("binds: " + JSON.stringify(binds));
+
+    var options = {
+        autoCommit: false,
+        bindDefs: {           
+            lnk: { type: oracledb.STRING, maxSize: 5000 },
+            industry: { type: oracledb.STRING, maxSize: 500 }
+        }
+    };
+        
+    if (binds.length){
+        var results = await conn.executeMany(updateStatement, binds, options);            
+        console.log(JSON.stringify(results));
+    }
+
+    await conn.commit();
+
+    await conn.close();                            
+    //return classify;
+}
+
+async function cnbc_classification() {
+    // downloading the target web page
+    // by performing an HTTP GET request in Axios
+
+
+    var industries = ['TECH','HEALTHCARE','AI','SPORT','SEMICONDUCTORS'];
+                        
+    for (var industry of industries){
+
+        var conn = await db_connect();
+
+        var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://www.cnbc.com%' and "INDUSTRY" in ('${industry.toUpperCase()}')`;
+        
+        const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+    
+
+        for (var i=0;i<results.rows.length;i++){
+            var ls = results.rows.map(each=>each["CONTENT"]).slice(i,i+96);
+            predictions = await classifyData(ls, industry);
+
+            console.log("predictions:" + JSON.stringify(predictions));
+            console.log(JSON.stringify(results.rows.slice(i,i+96).map(each => each["LINK"])));
+
+            await updateAnalyticsDetails(results.rows.slice(i,i+96).map(each => each["LINK"]), predictions);
+            i+=96;
+        }
+
+        await conn.close();
     }
 
     //return classify;
 }
-
 async function updateAnalyticsDetails(lnks, predictions) {
     // downloading the target web page
     // by performing an HTTP GET request in Axios
@@ -258,5 +326,6 @@ async function updateAnalyticsDetails(lnks, predictions) {
 module.exports = {
     cnbc_scraper : cnbc_scraper,
     cnbc_classification: cnbc_classification,
+    cnbc_industry_classification :cnbc_industry_classification,
     db_connect: db_connect
 }
