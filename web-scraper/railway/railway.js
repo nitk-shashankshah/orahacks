@@ -145,8 +145,26 @@ async function classifyData(lbl,class_type) {
     return results.rows;
 }
 
+
+async function createTraining() {
+
+    var conn = await db_connect();
+
+    console.log(`select "CONTENT" from ORAHACKS_SCRAPING`);
+    
+    const results = await conn.execute(`select "CONTENT" from ORAHACKS_SCRAPING where "LABEL" like '%wealth%'`, []);
+
+    await conn.close();
+
+    var trainings = results.rows.map(each => ({"text" : each["CONTENT"], "label" : 'RETAIL'}));
+
+    return trainings;
+}
+
+
 module.exports = {
     railwayScraping : railwayScraping,
     classifyData: classifyData,
-    db_connect: db_connect
+    db_connect: db_connect,
+    createTraining :createTraining
 }

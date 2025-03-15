@@ -82,7 +82,7 @@ async function cnbc_scraper() {
 
                         var pics = $(images[ind2]).find('picture');
 
-                        var img_lnk = '';
+                        var img_lnk = '#';
                         pics.each((ind3,pic) => {
                             $(pic).find('source').each((ind4,srce) => {
                                 if (ind4==0)
@@ -132,33 +132,37 @@ async function cnbc_scraper() {
                             try{
                                 var conn = await db_connect();
                     
-                                console.log(JSON.stringify(headlines));
                     
-                                var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK","MAJOR") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink,:major_label)`;
+                                var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink)`;
                     
                                 var binds = headlines.map((each, idx) => ({
                                     ttle: each.ttle.substr(0,5000),
-                                    lnk: each.lnk,
-                                    imgLink: img_lnk,
                                     lbl: each.lbl.replace(/\//g,''),
+                                    lnk: each.lnk,
                                     content: each.content.replace(/\'/g,'').replace(/\"/g,'').replace(/\`/g,'').substr(0,10000),
                                     prediction: prediction,
+                                    imgLink: img_lnk ? img_lnk : '#'
                                 }));            
-                    
-                                console.log(JSON.stringify(binds));
-                    
+            
+
                                 var options = {
                                     autoCommit: false,
                                     bindDefs: {
                                         ttle: { type: oracledb.STRING, maxSize: 5000 },
                                         lbl: { type: oracledb.STRING, maxSize: 500 },
                                         lnk: { type: oracledb.STRING, maxSize: 5000 },
-                                        imgLink: { type: oracledb.STRING, maxSize: 5000 },
                                         content: { type: oracledb.STRING, maxSize: 10000 },
-                                        prediction: { type: oracledb.STRING, maxSize: 500 }
+                                        prediction: { type: oracledb.STRING, maxSize: 500 },
+                                        imgLink: { type: oracledb.STRING, maxSize: 5000 }
                                     }
-                                };
-                                    
+                                }; 
+
+                                        
+                                console.log(insertStatement);
+                                console.log(JSON.stringify(binds));
+                                console.log(JSON.stringify(options));
+
+
                                 if (binds.length){
                                     var results = await conn.executeMany(insertStatement, binds, options);            
                                     console.log(JSON.stringify(results));

@@ -15,7 +15,7 @@ if (!process.execArgv.some(arg => arg.startsWith("--max-http-header-size="))) {
 
 
 var cors = require('cors');
-var { railwayScraping, classifyData, db_connect }  = require('./railway/railway'); 
+var { railwayScraping, classifyData, createTraining, db_connect }  = require('./railway/railway'); 
 var { cnbc_scraper, cnbc_classification }  = require('./cnbc/cnbc'); 
 var { cnn, cnn_classification }  = require('./cnn/cnn'); 
 
@@ -49,6 +49,11 @@ app.use("/api/industry", industryRoutes);
 app.use("/api/allwidgets", widgetsRoutes); 
 app.use("/api/client-params", clientParamsRoutes);
 
+app.get("/training", cors(corsOptions), async (req, res, next) => {
+    var ls = await createTraining();
+    console.log(JSON.stringify(ls));
+    res.send(JSON.stringify(ls));
+})
 
 // Handling GET /hello request
 app.get("/classify", cors(corsOptions), async (req, res, next) => {
