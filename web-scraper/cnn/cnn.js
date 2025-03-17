@@ -25,8 +25,7 @@ async function db_connect() {
 async function cnn() {
   const base_url = "https://edition.cnn.com";
 
-  for (var page_url of ["https://edition.cnn.com/sport"]) {
-    //"https://edition.cnn.com/health","https://edition.cnn.com/business"]){
+  for (var page_url of ["https://edition.cnn.com/business"]){//},"https://edition.cnn.com/health","https://edition.cnn.com/sport"]){
 
     console.log("Fetching main page:", page_url);
 
@@ -101,8 +100,7 @@ async function cnn() {
               ttle: $(el).text().trim(),
               lnk: base_url + $(el).parent().parent().parent().attr("href"),
               lbl: name.replace(/\//g, ""),
-              imageLink: img_lnk,
-
+              imageLink: img_lnk
             };
             // console.log(obj["lnk"]);
 
