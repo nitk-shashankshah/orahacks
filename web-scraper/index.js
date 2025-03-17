@@ -17,7 +17,7 @@ if (!process.execArgv.some(arg => arg.startsWith("--max-http-header-size="))) {
 var cors = require('cors');
 var { railwayScraping, classifyData, createTraining, db_connect }  = require('./railway/railway'); 
 var { cnbc_scraper, cnbc_classification, cnbc_industry_classification }  = require('./cnbc/cnbc'); 
-var { cnn, cnn_classification }  = require('./cnn/cnn'); 
+var { cnn, cnn_classification, cnn_industry_classification }  = require('./cnn/cnn'); 
 
 var { bloomberg }  = require('./bloomberg/blommberg'); 
 var { yahoo }  = require('./yahoo/yahoo'); 
@@ -72,7 +72,7 @@ app.get("/load/railway", cors(corsOptions), async (req, res, next) => {
 // Handling GET /hello request
 app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
     //var ls = await cnbc_scraper();
-    var cls = await cnbc_classification(req.query.label);
+    var cls = await cnbc_classification();
     //var cls = await cnbc_industry_classification();
     res.send(JSON.stringify({}));
 })
@@ -107,8 +107,10 @@ app.get("/load/insider", cors(corsOptions), async (req, res, next) => {
 
 // Handling GET /hello request
 app.get("/load/cnn", cors(corsOptions), async (req, res, next) => {
-    var ls = await cnn();
-    //var cls = await cnn_classification(req.query.label);
+    //var ls = await cnn();
+    var cls = {};
+    //var cls = await cnn_industry_classification();
+    var cls = await cnn_classification();
     res.send(JSON.stringify(cls));
 })
 

@@ -27,7 +27,7 @@ async function cnbc_scraper() {
     var pages = [];
 
     var page_url = "https://www.cnbc.com";
-        
+
     console.log(page_url);
 
     var axiosResponse = await axios.request({
@@ -267,17 +267,19 @@ async function cnbc_classification() {
         const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
     
 
-        for (var i=0;i<results.rows.length;i++){
-            var ls = results.rows.map(each=>each["CONTENT"]).slice(i,i+96);
+        for (var i=0;i<results.rows.length;i+=96){
+      
+            var ls = results.rows.filter(each => ((each["INDUSTRY"] ? each["INDUSTRY"].split(",") : []).indexOf(industry)>=0 ? true : false)).map(each=>each["CONTENT"]).slice(i,i+96);
             predictions = await classifyData(ls, industry);
-
+  
+            console.log("ls:" + ls);
+            console.log("ls:" + JSON.stringify(ls));
+  
+            console.log("industry:" + JSON.stringify(industry));
             console.log("predictions:" + JSON.stringify(predictions));
-            console.log(JSON.stringify(results.rows.slice(i,i+96).map(each => each["LINK"])));
-
-            await updateAnalyticsDetails(results.rows.slice(i,i+96).map(each => each["LINK"]), predictions);
-            i+=96;
+  
+            await updateAnalyticsDetails(results.rows.filter(each => ((each["INDUSTRY"] ? each["INDUSTRY"].split(",") : []).indexOf(industry)>=0 ? true : false)).slice(i,i+96).map(each => each["LINK"]), predictions);
         }
-
         await conn.close();
     }
 

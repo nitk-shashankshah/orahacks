@@ -5,6 +5,7 @@ var { CohereClientV2 } = require("cohere-ai");
 const oracledb = require("oracledb");
 const summarizeText = require("../summarize.js");
 const classifyData = require("../classify.js");
+const industryClassifyData = require('../industryClassify');
 
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
@@ -25,7 +26,7 @@ async function db_connect() {
 async function cnn() {
   const base_url = "https://edition.cnn.com";
 
-  for (var page_url of ["https://edition.cnn.com/business"]){//},"https://edition.cnn.com/health","https://edition.cnn.com/sport"]){
+  for (var page_url of ["https://edition.cnn.com/business"]){ //},"https://edition.cnn.com/health","https://edition.cnn.com/sport"]){
 
     console.log("Fetching main page:", page_url);
 
@@ -60,6 +61,8 @@ async function cnn() {
       }
     });
 
+    let headlines = [];
+
     // Extracting headlines from each menu link
     for (const { name, link } of menuLinks) {
       console.log("\nScraping:", link);
@@ -79,7 +82,6 @@ async function cnn() {
           var titleContainers = $(card).find(".container__headline-text");
 
           titleContainers.each(async (ind2, el) => {
-            let headlines = [];
 
             var pics = $(images[ind2]).find("picture");
 
@@ -102,7 +104,7 @@ async function cnn() {
               lbl: name.replace(/\//g, ""),
               imageLink: img_lnk
             };
-            // console.log(obj["lnk"]);
+            console.log(JSON.stringify(obj));
 
             try {
               const pageResp = await axios.request({
@@ -135,6 +137,8 @@ async function cnn() {
                 .toString()
                 .substring(0, 10000);
 
+              console.log(obj["content"]);
+
               var summary = "";
               //var prediction = "";
               try {
@@ -152,57 +156,6 @@ async function cnn() {
             } catch (ex) {
               //console.log(ex.message);
             }
-
-            console.log("headlines : " + headlines.length);
-
-            if (headlines.length > 0) {
-              try {
-                var conn = await db_connect();
-
-                console.log(JSON.stringify(headlines));
-
-                var prediction = "OPPORTUNITY";
-
-                var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink)`;
-
-                var binds = headlines.map((each, idx) => ({
-                  ttle: each.ttle.substring(0, 5000),
-                  lbl: each.lbl.replace(/\//g, ""),
-                  lnk: each.lnk,
-                  content: summary.replace(/\'/g, "").replace(/\`/g, ""),
-                  prediction: prediction,
-                  imgLink: each.imageLink,
-                }));
-
-                console.log(JSON.stringify(binds));
-
-                var options = {
-                  autoCommit: false,
-                  bindDefs: {
-                    ttle: { type: oracledb.STRING, maxSize: 5000 },
-                    lbl: { type: oracledb.STRING, maxSize: 500 },
-                    lnk: { type: oracledb.STRING, maxSize: 5000 },
-                    content: { type: oracledb.STRING, maxSize: 10000 },
-                    prediction: { type: oracledb.STRING, maxSize: 100 },
-                    imgLink: { type: oracledb.STRING, maxSize: 5000 },
-                  },
-                };
-
-                var results = await conn.executeMany(
-                  insertStatement,
-                  binds,
-                  options
-                );
-
-                console.log(JSON.stringify(results));
-
-                await conn.commit();
-
-                await conn.close();
-              } catch (ex) {
-                //console.log(ex.message);
-              }
-            }
           });
         });
       } catch (ex) {
@@ -210,88 +163,213 @@ async function cnn() {
         //continue;
       }
     }
+
+    console.log("headlines : " + JSON.stringify(headlines[0]));
+    var conn = await db_connect();
+
+    if (headlines.length > 0) {
+
+      for (var x=0;x<headlines.length;x++){
+        try {
+
+          console.log(JSON.stringify(headlines));
+
+          var prediction = "OPPORTUNITY";
+
+          var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink)`;
+
+          var binds = headlines.slice(x,x+1).map((each, idx) => ({
+            ttle: each.ttle.substring(0, 5000),
+            lbl: each.lbl.replace(/\//g, ""),
+            lnk: each.lnk,
+            content: each["content"].replace(/\'/g, "").replace(/\`/g, ""),
+            prediction: prediction,
+            imgLink: each.imageLink
+          }));
+
+          console.log(JSON.stringify(binds));
+
+          var options = {
+            autoCommit: false,
+            bindDefs: {
+              ttle: { type: oracledb.STRING, maxSize: 5000 },
+              lbl: { type: oracledb.STRING, maxSize: 500 },
+              lnk: { type: oracledb.STRING, maxSize: 5000 },
+              content: { type: oracledb.STRING, maxSize: 10000 },
+              prediction: { type: oracledb.STRING, maxSize: 100 },
+              imgLink: { type: oracledb.STRING, maxSize: 5000 }
+            }
+          };
+
+          var results = await conn.executeMany(
+            insertStatement,
+            binds,
+            options
+          );
+
+          console.log(JSON.stringify(results));
+
+          await conn.commit();
+
+        } catch (ex) {
+          console.log(ex.message);
+        }
+      }
+    }
+    await conn.close();
     // Insert extracted headlines into Oracle DB
   }
   //return classify;
 }
 
-async function cnn_classification(lbl) {
+
+async function cnn_classification() {
   // downloading the target web page
   // by performing an HTTP GET request in Axios
 
-  var conn = await db_connect();
 
-  var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%cnn%' and LOWER("LABEL") like '%${lbl}%'`;
+  var industries = ['TECH','HEALTHCARE','AI','SPORT','SEMICONDUCTORS'];
+                      
+  for (var industry of industries){
 
-  console.log(selectStatement);
+      var conn = await db_connect();
 
-  const results = await conn.execute(selectStatement, [], {
-    outFormat: oracledb.OUT_FORMAT_OBJECT,
-  });
+      var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://edition.cnn.com%'`;
+      
+      const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+  
+      for (var i=0;i<results.rows.length;i+=96){
+      
+          var ls = results.rows.filter(each => ((each["INDUSTRY"] ? each["INDUSTRY"].split(",") : []).indexOf(industry)>=0 ? true : false)).map(each=>each["CONTENT"]).slice(i,i+96);
+          predictions = await classifyData(ls, industry);
 
-  await conn.close();
+          console.log("ls:" + ls);
+          console.log("ls:" + JSON.stringify(ls));
 
-  for (var i = 0; i < results.rows.length; i++) {
-    var ls = results.rows.map((each) => each["CONTENT"]).slice(i, i + 96);
-    predictions = await classifyData(ls);
+          console.log("industry:" + JSON.stringify(industry));
+          console.log("predictions:" + JSON.stringify(predictions));
 
-    console.log("predictions:" + JSON.stringify(predictions));
-    console.log(
-      JSON.stringify(results.rows.slice(i, i + 96).map((each) => each["LINK"]))
-    );
+          await updateAnalyticsDetails(results.rows.filter(each => ((each["INDUSTRY"] ? each["INDUSTRY"].split(",") : []).indexOf(industry)>=0 ? true : false)).slice(i,i+96).map(each => each["LINK"]), predictions);
+      }
 
-    await updateAnalyticsDetails(
-      results.rows.slice(i, i + 96).map((each) => each["LINK"]),
-      predictions
-    );
-    i += 96;
+      await conn.close();
   }
 
   //return classify;
 }
-
 async function updateAnalyticsDetails(lnks, predictions) {
   // downloading the target web page
   // by performing an HTTP GET request in Axios
 
-  var conn = await db_connect();
+  var conn = await db_connect();                               
 
   var updateStatement = `update ORAHACKS_SCRAPING set "CLASSIFICATION"=:prediction where "LINK"=:lnk`;
-
+                  
   var binds = [];
 
-  var idx = 0;
-  for (var each of lnks) {
-    binds.push({
-      lnk: each,
-      prediction: predictions[idx],
-    });
-    idx++;
+  var idx =0;
+  for (var each of lnks){
+      binds.push({
+          lnk: each,
+          prediction: predictions[idx]
+      });
+      idx++;
   }
 
   console.log("binds: " + JSON.stringify(binds));
 
   var options = {
-    autoCommit: false,
-    bindDefs: {
-      lnk: { type: oracledb.STRING, maxSize: 5000 },
-      prediction: { type: oracledb.STRING, maxSize: 500 },
-    },
+      autoCommit: false,
+      bindDefs: {           
+          lnk: { type: oracledb.STRING, maxSize: 5000 },
+          prediction: { type: oracledb.STRING, maxSize: 500 }
+      }
   };
-
-  if (binds.length) {
-    var results = await conn.executeMany(updateStatement, binds, options);
-    console.log(JSON.stringify(results));
+      
+  if (binds.length){
+      var results = await conn.executeMany(updateStatement, binds, options);            
+      console.log(JSON.stringify(results));
   }
 
   await conn.commit();
 
-  await conn.close();
+  await conn.close();                            
   //return classify;
 }
+
+
+async function cnn_industry_classification() {
+  // downloading the target web page
+  // by performing an HTTP GET request in Axios
+
+  var conn = await db_connect();
+                             
+  var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://edition.cnn.com%'`;
+  
+  const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+ 
+  await conn.close();
+
+  for (var i=0;i<results.rows.length;i++){
+      var ls = results.rows.map(each=>each["CONTENT"]).slice(i,i+96);
+      
+      console.log(JSON.stringify(ls));
+      
+      let predictions = await industryClassifyData(ls);
+
+      console.log("predictions:" + JSON.stringify(predictions));
+      //console.log(JSON.stringify(results.rows.slice(i,i+96).map(each => each["LINK"])));
+
+      await updateIndustryDetails(results.rows.slice(i,i+96).map(each => each["LINK"]), predictions);
+      i+=96;
+  }
+  //return classify;
+}
+
+async function updateIndustryDetails(lnks, industries) {
+  // downloading the target web page
+  // by performing an HTTP GET request in Axios
+
+  var conn = await db_connect();                               
+
+  var updateStatement = `update ORAHACKS_SCRAPING set "INDUSTRY"=:industry where "LINK"=:lnk`;
+                  
+  var binds = [];
+
+  var idx =0;
+  for (var each of lnks){
+      binds.push({
+          lnk: each,
+          industry: industries[idx]
+      });
+      idx++;
+  }
+
+  console.log("binds: " + JSON.stringify(binds));
+
+  var options = {
+      autoCommit: false,
+      bindDefs: {           
+          lnk: { type: oracledb.STRING, maxSize: 5000 },
+          industry: { type: oracledb.STRING, maxSize: 500 }
+      }
+  };
+      
+  if (binds.length){
+      var results = await conn.executeMany(updateStatement, binds, options);            
+      console.log(JSON.stringify(results));
+  }
+
+  await conn.commit();
+
+  await conn.close();                            
+  //return classify;
+}
+
 
 module.exports = {
   cnn: cnn,
   db_connect: db_connect,
+  cnn_industry_classification: cnn_industry_classification,
   cnn_classification: cnn_classification,
 };
