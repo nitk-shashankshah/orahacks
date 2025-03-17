@@ -164,6 +164,33 @@ async function classifyData(lbl,class_type) {
 }
 
 
+
+async function getSentiment(lbl,industry) {
+
+    var conn = await db_connect();
+
+    console.log(`select * from ORAHACKS_SCRAPING where UPPER("SENTIMENT") like '%${lbl.toUpperCase()}%' and  UPPER("INDUSTRY") like '%${industry.toUpperCase()}%'`);
+
+    const results = await conn.execute(`select * from ORAHACKS_SCRAPING where UPPER("SENTIMENT") like '%${lbl.toUpperCase()}%' and  UPPER("INDUSTRY") like '%${industry.toUpperCase()}%'`, []);
+
+    var ls = results.rows.filter(each => {
+        var ls = []
+        if (each["INDUSTRY"]){
+            ls = each["INDUSTRY"].split(",");
+        }
+        
+        if (ls.indexOf(industry.toUpperCase())>=0)
+            return true;
+
+        return false;
+    });
+
+    await conn.close();
+
+    return ls;
+}
+
+
 async function createTraining() {
 
     var conn = await db_connect();
@@ -184,5 +211,6 @@ module.exports = {
     railwayScraping : railwayScraping,
     classifyData: classifyData,
     db_connect: db_connect,
-    createTraining :createTraining
+    createTraining :createTraining,
+    getSentiment: getSentiment
 }

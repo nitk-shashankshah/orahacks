@@ -15,9 +15,9 @@ if (!process.execArgv.some(arg => arg.startsWith("--max-http-header-size="))) {
 
 
 var cors = require('cors');
-var { railwayScraping, classifyData, createTraining, db_connect }  = require('./railway/railway'); 
-var { cnbc_scraper, cnbc_classification, cnbc_industry_classification }  = require('./cnbc/cnbc'); 
-var { cnn, cnn_classification, cnn_industry_classification }  = require('./cnn/cnn'); 
+var { railwayScraping, classifyData, createTraining, db_connect , getSentiment}  = require('./railway/railway'); 
+var { cnbc_scraper, cnbc_classification, cnbc_industry_classification, cnbc_sentiment_analysis }  = require('./cnbc/cnbc'); 
+var { cnn, cnn_classification, cnn_industry_classification,cnn_sentiment_analysis }  = require('./cnn/cnn'); 
 
 var { bloomberg }  = require('./bloomberg/blommberg'); 
 var { yahoo }  = require('./yahoo/yahoo'); 
@@ -56,6 +56,13 @@ app.get("/training", cors(corsOptions), async (req, res, next) => {
 })
 
 // Handling GET /hello request
+app.get("/sentiment", cors(corsOptions), async (req, res, next) => {
+    var ls = await getSentiment(req.query.type, req.query.industry);
+    console.log(JSON.stringify(ls));
+    res.send(JSON.stringify(ls));
+})
+
+// Handling GET /hello request
 app.get("/classify", cors(corsOptions), async (req, res, next) => {
     var ls = await classifyData(req.query.label, req.query.classification);
     console.log(JSON.stringify(ls));
@@ -72,8 +79,9 @@ app.get("/load/railway", cors(corsOptions), async (req, res, next) => {
 // Handling GET /hello request
 app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
     //var ls = await cnbc_scraper();
-    var cls = await cnbc_classification();
+    //var cls = await cnbc_classification();
     //var cls = await cnbc_industry_classification();
+    var sentiment = await cnbc_sentiment_analysis()
     res.send(JSON.stringify({}));
 })
 
@@ -107,13 +115,13 @@ app.get("/load/insider", cors(corsOptions), async (req, res, next) => {
 
 // Handling GET /hello request
 app.get("/load/cnn", cors(corsOptions), async (req, res, next) => {
-    var ls = await cnn();
+    //var ls = await cnn();
     var cls = {};
     //var cls = await cnn_industry_classification();
     //var cls = await cnn_classification();
+    var cls = await cnn_sentiment_analysis();
     res.send(JSON.stringify(cls));
 })
-
 
 // Handling GET /hello request
 app.get("/load/marketwatch", cors(corsOptions), async (req, res, next) => {
@@ -128,6 +136,8 @@ app.get("/load/wsj", cors(corsOptions), async (req, res, next) => {
     console.log(JSON.stringify(ls));
     res.send(JSON.stringify(ls));
 })
+
+
 // Server setup
 app.listen(3001, () => {
     console.log("Server is Running")

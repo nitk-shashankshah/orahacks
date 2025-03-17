@@ -6,6 +6,7 @@ const oracledb = require("oracledb");
 const summarizeText = require("../summarize.js");
 const classifyData = require("../classify.js");
 const industryClassifyData = require('../industryClassify');
+const sentimentAnalysis = require('../sentiment');
 
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
@@ -297,6 +298,69 @@ async function updateAnalyticsDetails(lnks, predictions) {
   //return classify;
 }
 
+async function cnn_sentiment_analysis() {
+  // downloading the target web page
+  // by performing an HTTP GET request in Axios                    
+
+  var conn = await db_connect();
+
+  var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://edition.cnn.com%'`;
+      
+  const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+  
+  for (var i=0;i<results.rows.length;i+=96){
+    
+      var ls = results.rows.map(each=>each["CONTENT"]).slice(i,i+96);
+      predictions = await sentimentAnalysis(ls);
+
+      await updateSentimentDetails(results.rows.slice(i,i+96).map(each => each["LINK"]), predictions);
+  }
+
+  await conn.close();
+
+  //return classify;
+}
+
+async function updateSentimentDetails(lnks, predictions) {
+  // downloading the target web page
+  // by performing an HTTP GET request in Axios
+
+  var conn = await db_connect();                               
+
+  var updateStatement = `update ORAHACKS_SCRAPING set "SENTIMENT"=:prediction where "LINK"=:lnk`;
+                  
+  var binds = [];
+
+  var idx =0;
+  for (var each of lnks){
+      binds.push({
+          lnk: each,
+          prediction: predictions[idx]
+      });
+      idx++;
+  }
+
+  console.log("binds: " + JSON.stringify(binds));
+
+  var options = {
+      autoCommit: false,
+      bindDefs: {           
+          lnk: { type: oracledb.STRING, maxSize: 5000 },
+          prediction: { type: oracledb.STRING, maxSize: 500 }
+      }
+  };
+      
+  if (binds.length){
+      var results = await conn.executeMany(updateStatement, binds, options);            
+      console.log(JSON.stringify(results));
+  }
+
+  await conn.commit();
+
+  await conn.close();                            
+  //return classify;
+}
+
 
 async function cnn_industry_classification() {
   // downloading the target web page
@@ -372,4 +436,5 @@ module.exports = {
   db_connect: db_connect,
   cnn_industry_classification: cnn_industry_classification,
   cnn_classification: cnn_classification,
+  cnn_sentiment_analysis:cnn_sentiment_analysis
 };
