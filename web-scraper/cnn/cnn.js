@@ -26,7 +26,7 @@ async function db_connect() {
 async function cnn() {
   const base_url = "https://edition.cnn.com";
 
-  for (var page_url of ["https://edition.cnn.com/business"]){ //},"https://edition.cnn.com/health","https://edition.cnn.com/sport"]){
+  for (var page_url of ["https://edition.cnn.com/business","https://edition.cnn.com/health","https://edition.cnn.com/sport"]){
 
     console.log("Fetching main page:", page_url);
 

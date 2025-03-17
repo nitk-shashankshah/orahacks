@@ -107,10 +107,10 @@ app.get("/load/insider", cors(corsOptions), async (req, res, next) => {
 
 // Handling GET /hello request
 app.get("/load/cnn", cors(corsOptions), async (req, res, next) => {
-    //var ls = await cnn();
+    var ls = await cnn();
     var cls = {};
     //var cls = await cnn_industry_classification();
-    var cls = await cnn_classification();
+    //var cls = await cnn_classification();
     res.send(JSON.stringify(cls));
 })
 
