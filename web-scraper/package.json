@@ -10,7 +10,6 @@
     "cors": "^2.8.5",
     "cra-template": "1.2.0",
     "express": "^4.21.2",
-    "ml-distance": "^4.0.1",
     "numpy": "^0.0.1",
     "oci-analytics": "^2.102.2",
     "oracledb": "^6.7.1",
