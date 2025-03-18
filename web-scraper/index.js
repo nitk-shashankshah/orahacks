@@ -15,7 +15,7 @@ if (!process.execArgv.some(arg => arg.startsWith("--max-http-header-size="))) {
 
 
 var cors = require('cors');
-var { railwayScraping, classifyData, createTraining, db_connect , getSentiment}  = require('./railway/railway'); 
+var { railwayScraping, classifyData, createTraining, embedData , getSentiment}  = require('./railway/railway'); 
 var { cnbc_scraper, cnbc_classification, cnbc_industry_classification, cnbc_sentiment_analysis }  = require('./cnbc/cnbc'); 
 var { cnn, cnn_classification, cnn_industry_classification,cnn_sentiment_analysis }  = require('./cnn/cnn'); 
 
@@ -55,6 +55,12 @@ app.get("/training", cors(corsOptions), async (req, res, next) => {
     res.send(JSON.stringify(ls));
 })
 
+app.get("/embed", cors(corsOptions), async (req, res, next) => {
+    var ls = await embedData();
+    console.log(JSON.stringify(ls));
+    res.send(JSON.stringify(ls));
+})
+
 // Handling GET /hello request
 app.get("/sentiment", cors(corsOptions), async (req, res, next) => {
     var ls = await getSentiment(req.query.type, req.query.industry);
@@ -65,7 +71,6 @@ app.get("/sentiment", cors(corsOptions), async (req, res, next) => {
 // Handling GET /hello request
 app.get("/classify", cors(corsOptions), async (req, res, next) => {
     var ls = await classifyData(req.query.label, req.query.classification);
-    console.log(JSON.stringify(ls));
     res.send(JSON.stringify(ls));
 })
 

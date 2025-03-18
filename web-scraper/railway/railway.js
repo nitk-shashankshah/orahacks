@@ -1,7 +1,8 @@
 const cheerio = require("cheerio")
 const axios = require("axios")
 var {CohereClientV2} = require("cohere-ai");
-//const cohere = require('cohere-ai');
+var similarity = require( 'compute-cosine-similarity' );
+var compareData = require("../embed");
 const oracledb = require('oracledb');
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
@@ -136,21 +137,13 @@ async function classifyData(lbl,class_type) {
 
     var conn = await db_connect();
 
-    console.log(`select * from ORAHACKS_SCRAPING where UPPER("INDUSTRY") like '%${lbl.toUpperCase()}%' and  UPPER("CLASSIFICATION") like '%${class_type.toUpperCase()}%'`);
-
-    const results = await conn.execute(`select * from ORAHACKS_SCRAPING where UPPER("INDUSTRY") like '%${lbl.toUpperCase()}%' and  UPPER("CLASSIFICATION") like '%${class_type.toUpperCase()}%'`, []);
+    const results = await conn.execute(`select "TITLE","LABEL","LINK","CLASSIFICATION","IMAGE_LINK","INDUSTRY","VECTOR" from ORAHACKS_SCRAPING where UPPER("INDUSTRY") like '%${lbl.toUpperCase()}%' and  UPPER("CLASSIFICATION") like '%${class_type.toUpperCase()}%'`, []);
 
     var ls = results.rows.filter(each => {
         var ls = []
         if (each["INDUSTRY"]){
             ls = each["INDUSTRY"].split(",");
         }
-
-        console.log(JSON.stringify(ls));
-        
-        console.log(lbl.toUpperCase());
-
-        console.log(ls.indexOf(lbl.toUpperCase()));
         
         if (ls.indexOf(lbl.toUpperCase())>=0)
             return true;
@@ -158,12 +151,144 @@ async function classifyData(lbl,class_type) {
         return false;
     });
 
+    var obj = await getSimilarities(ls);
+
+    var groups = [];
+
+    for (var k of ls.map(each => each["LINK"])){
+        var group = [];
+        var flg = 0;
+        for (var grp of groups){
+            if (grp.indexOf(k)>=0){
+                flg=1;
+                group = grp;
+                break;
+            }
+        }
+    
+        if (flg == 0){            
+            group.push(k);
+            groups.push(group);
+        }
+        
+        makeGroup(k, group, obj);
+
+    }
+
+    var lnkObj = {};
+ 
+    ls.map(each => {
+        delete each["VECTOR"];
+        lnkObj[each["LINK"]] = each;
+    });
+
+    var finalLs = [];
+    for (var grp of groups){
+       var op = [];
+       for (var lk of grp){
+        op.push(lnkObj[lk]);
+       }
+       finalLs.push(op);
+    }
+
     await conn.close();
 
-    return ls;
+    return finalLs;
 }
 
+function makeGroup(k, group, obj){
 
+    if (obj.hasOwnProperty(k)){
+      for (var j of obj[k]){
+        if (group.indexOf(j)<0){
+            group.push(j);
+            makeGroup(j, group, obj);
+        }
+      }
+    }
+}
+
+async function getSimilarities(inputLs) {
+    var obj = {};
+    for (var i=0;i<inputLs.length-1;i++){
+      for (var j=i+1;j<inputLs.length;j++){
+        var s1 = similarity(JSON.parse(inputLs[i]["VECTOR"]), JSON.parse(inputLs[j]["VECTOR"]));
+        if (s1 >= 0.6){
+          if (obj.hasOwnProperty(inputLs[i]["LINK"]))
+            obj[inputLs[i]["LINK"]].push(inputLs[j]["LINK"]);
+          else 
+            obj[inputLs[i]["LINK"]]=[inputLs[j]["LINK"]];
+
+          if (obj.hasOwnProperty(inputLs[j]["LINK"]))
+            obj[inputLs[j]["LINK"]].push(inputLs[i]["LINK"]);
+          else 
+            obj[inputLs[j]["LINK"]]=[inputLs[i]["LINK"]];
+        }
+      }
+    }
+    return obj;
+}
+
+async function embedData() {
+
+    var conn = await db_connect();
+
+    console.log(`select * from ORAHACKS_SCRAPING where UPPER("CLASSIFICATION") like '%OPPORTUNITY%' and "VECTOR" IS NULL`);
+
+    const results = await conn.execute(`select "TITLE", "LINK" from ORAHACKS_SCRAPING where UPPER("CLASSIFICATION") like '%OPPORTUNITY%' and "VECTOR" IS NULL`, []);    
+
+    for (var i=0;i<results.rows.length;i+=96){
+      
+        let predictions = await compareData(results.rows.map(each => each["TITLE"]).slice(i,i+96));
+
+        await updateAnalyticsDetails(results.rows.slice(i,i+96).map(each => each["LINK"]), predictions);
+        
+    }
+
+    await conn.close();
+
+    return true;
+}
+
+async function updateAnalyticsDetails(lnks, predictions) {
+  // downloading the target web page
+  // by performing an HTTP GET request in Axios
+
+  var conn = await db_connect();                               
+
+  var updateStatement = `update ORAHACKS_SCRAPING set "VECTOR"=:prediction where "LINK"=:lnk`;
+                  
+  var binds = [];
+
+  var idx =0;
+  for (var each of lnks){
+      binds.push({
+          lnk: each,
+          prediction: JSON.stringify(predictions[idx])
+      });
+      idx++;
+  }
+
+  console.log("binds: " + JSON.stringify(binds));
+
+  var options = {
+      autoCommit: false,
+      bindDefs: {           
+          lnk: { type: oracledb.STRING, maxSize: 5000 },
+          prediction: { type: oracledb.STRING, maxSize: 32763 }
+      }
+  };
+      
+  if (binds.length){
+      var results = await conn.executeMany(updateStatement, binds, options);            
+      console.log(JSON.stringify(results));
+  }
+
+  await conn.commit();
+
+  await conn.close();                            
+  //return classify;
+}
 
 async function getSentiment(lbl,industry) {
 
@@ -210,6 +335,7 @@ async function createTraining() {
 module.exports = {
     railwayScraping : railwayScraping,
     classifyData: classifyData,
+    embedData: embedData,
     db_connect: db_connect,
     createTraining :createTraining,
     getSentiment: getSentiment
