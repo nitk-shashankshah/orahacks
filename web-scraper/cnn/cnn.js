@@ -62,10 +62,12 @@ async function cnn() {
       }
     });
 
-    let headlines = [];
 
     // Extracting headlines from each menu link
     for (const { name, link } of menuLinks) {
+
+      let headlines = [];
+
       console.log("\nScraping:", link);
 
       try {
@@ -163,7 +165,8 @@ async function cnn() {
         //console.log("Error fetching headlines:", ex.message);
         //continue;
       }
-    }
+
+
 
     console.log("headlines : " + JSON.stringify(headlines[0]));
     var conn = await db_connect();
@@ -217,6 +220,9 @@ async function cnn() {
         }
       }
     }
+
+    }
+
     await conn.close();
     // Insert extracted headlines into Oracle DB
   }
