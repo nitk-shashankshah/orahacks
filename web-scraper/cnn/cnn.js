@@ -26,6 +26,7 @@ async function db_connect() {
 
 async function cnn() {
   const base_url = "https://edition.cnn.com";
+  var conn = await db_connect();
 
   for (var page_url of ["https://edition.cnn.com/business","https://edition.cnn.com/health","https://edition.cnn.com/sport"]){
 
@@ -66,7 +67,6 @@ async function cnn() {
     // Extracting headlines from each menu link
     for (const { name, link } of menuLinks) {
 
-      let headlines = [];
 
       console.log("\nScraping:", link);
 
@@ -122,7 +122,6 @@ async function cnn() {
 
               const $_page = cheerio.load(pageResp.data);
               var all_content = [];
-
               //console.log("length: " +$_page(".article__content-container").length);
 
               $_page(".article__content-container").each((ind2, el2) => {
@@ -146,12 +145,65 @@ async function cnn() {
               //var prediction = "";
               try {
                 if (obj["content"]) {
+                  let headlines = [];
+
                   summary = await summarizeText(obj["content"]);
                   //console.log("______________________________");
                   //prediction = await classifyData(summary);
                   //console.log(JSON.stringify(prediction));
                   obj["content"] = summary;
                   headlines.push(obj);
+
+
+                  if (headlines.length > 0) {
+
+                    for (var x=0;x<headlines.length;x++){
+                      try {
+
+                        console.log(JSON.stringify(headlines));
+
+                        var prediction = "OPPORTUNITY";
+
+                        var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink)`;
+
+                        var binds = headlines.slice(x,x+1).map((each, idx) => ({
+                          ttle: each.ttle.substring(0, 5000),
+                          lbl: each.lbl.replace(/\//g, ""),
+                          lnk: each.lnk,
+                          content: each["content"].replace(/\'/g, "").replace(/\`/g, ""),
+                          prediction: prediction,
+                          imgLink: each.imageLink
+                        }));
+
+                        console.log(JSON.stringify(binds));
+
+                        var options = {
+                          autoCommit: false,
+                          bindDefs: {
+                            ttle: { type: oracledb.STRING, maxSize: 5000 },
+                            lbl: { type: oracledb.STRING, maxSize: 500 },
+                            lnk: { type: oracledb.STRING, maxSize: 5000 },
+                            content: { type: oracledb.STRING, maxSize: 10000 },
+                            prediction: { type: oracledb.STRING, maxSize: 100 },
+                            imgLink: { type: oracledb.STRING, maxSize: 5000 }
+                          }
+                        };
+
+                        var results = await conn.executeMany(
+                          insertStatement,
+                          binds,
+                          options
+                        );
+
+                        console.log(JSON.stringify(results));
+
+                        await conn.commit();
+
+                      } catch (ex) {
+                        console.log(ex.message);
+                      }
+                    }
+                  }
                 }
               } catch (ex) {
                 //console.log(ex.message);
@@ -168,62 +220,10 @@ async function cnn() {
 
 
 
-    console.log("headlines : " + JSON.stringify(headlines[0]));
-    var conn = await db_connect();
-
-    if (headlines.length > 0) {
-
-      for (var x=0;x<headlines.length;x++){
-        try {
-
-          console.log(JSON.stringify(headlines));
-
-          var prediction = "OPPORTUNITY";
-
-          var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink)`;
-
-          var binds = headlines.slice(x,x+1).map((each, idx) => ({
-            ttle: each.ttle.substring(0, 5000),
-            lbl: each.lbl.replace(/\//g, ""),
-            lnk: each.lnk,
-            content: each["content"].replace(/\'/g, "").replace(/\`/g, ""),
-            prediction: prediction,
-            imgLink: each.imageLink
-          }));
-
-          console.log(JSON.stringify(binds));
-
-          var options = {
-            autoCommit: false,
-            bindDefs: {
-              ttle: { type: oracledb.STRING, maxSize: 5000 },
-              lbl: { type: oracledb.STRING, maxSize: 500 },
-              lnk: { type: oracledb.STRING, maxSize: 5000 },
-              content: { type: oracledb.STRING, maxSize: 10000 },
-              prediction: { type: oracledb.STRING, maxSize: 100 },
-              imgLink: { type: oracledb.STRING, maxSize: 5000 }
-            }
-          };
-
-          var results = await conn.executeMany(
-            insertStatement,
-            binds,
-            options
-          );
-
-          console.log(JSON.stringify(results));
-
-          await conn.commit();
-
-        } catch (ex) {
-          console.log(ex.message);
-        }
-      }
-    }
 
     }
 
-    await conn.close();
+    //await conn.close();
     // Insert extracted headlines into Oracle DB
   }
   //return classify;
