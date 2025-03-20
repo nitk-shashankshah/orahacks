@@ -99,22 +99,22 @@ async function cnbc_scraper() {
                             const $_page = cheerio.load(pageResp.data)
                             var all_content = [];
                             
-                            $_page(".ArticleBody-articleBody").each((ind2, el2) => {
+                            /*$_page(".ArticleBody-articleBody").each((ind2, el2) => {
                                 $(el2).find("p").each(async (ind, dt) => {
                                     all_content.push($(dt).html());
                                 });
                             });
 
-                            obj["content"] = all_content.join();
-
-                            try{
+                            obj["content"] = all_content.join();*/
+                            obj["content"] = obj["ttle"];
+                           /* try{
                                 if (obj["content"])
                                     obj["content"] = await summarizeText(obj["content"]);
                                 else 
                                     return;
                             } catch(ex){
                                 //console.log(ex.message);
-                            }
+                            }*/
 
                             console.log("__________________________________________________________");
                             console.log(obj["content"]);
