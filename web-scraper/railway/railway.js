@@ -212,17 +212,21 @@ async function getSimilarities(inputLs) {
     var obj = {};
     for (var i=0;i<inputLs.length-1;i++){
       for (var j=i+1;j<inputLs.length;j++){
-        var s1 = similarity(JSON.parse(inputLs[i]["VECTOR"]), JSON.parse(inputLs[j]["VECTOR"]));
-        if (s1 >= 0.6){
-          if (obj.hasOwnProperty(inputLs[i]["LINK"]))
-            obj[inputLs[i]["LINK"]].push(inputLs[j]["LINK"]);
-          else 
-            obj[inputLs[i]["LINK"]]=[inputLs[j]["LINK"]];
+        try{
+            var s1 = similarity(JSON.parse(inputLs[i]["VECTOR"]), JSON.parse(inputLs[j]["VECTOR"]));
+            if (s1 >= 0.6){
+            if (obj.hasOwnProperty(inputLs[i]["LINK"]))
+                obj[inputLs[i]["LINK"]].push(inputLs[j]["LINK"]);
+            else 
+                obj[inputLs[i]["LINK"]]=[inputLs[j]["LINK"]];
 
-          if (obj.hasOwnProperty(inputLs[j]["LINK"]))
-            obj[inputLs[j]["LINK"]].push(inputLs[i]["LINK"]);
-          else 
-            obj[inputLs[j]["LINK"]]=[inputLs[i]["LINK"]];
+            if (obj.hasOwnProperty(inputLs[j]["LINK"]))
+                obj[inputLs[j]["LINK"]].push(inputLs[i]["LINK"]);
+            else 
+                obj[inputLs[j]["LINK"]]=[inputLs[i]["LINK"]];
+            }
+        } catch(ex){
+            console.log(ex.message);
         }
       }
     }
