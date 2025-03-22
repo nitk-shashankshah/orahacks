@@ -110,7 +110,7 @@ async function cnn() {
             console.log(JSON.stringify(obj));
 
             try {
-              const pageResp = await axios.request({
+              /*const pageResp = await axios.request({
                 method: "GET",
                 url: obj["lnk"],
                 
@@ -130,16 +130,16 @@ async function cnn() {
                   .each((ind, dt) => {
                     all_content.push($(dt).html().trim());
                   });
-              });
+              });*/
 
-              obj["content"] = all_content
+              /*obj["content"] = all_content
                 .join()
                 .replace(/\'/g, "")
                 .replace(/\”/g, "")
                 .toString()
                 .substring(0, 10000);
 
-              console.log(obj["content"]);
+              console.log(obj["content"]);*/
 
               var summary = "";
               //var prediction = "";
@@ -147,7 +147,7 @@ async function cnn() {
                 if (obj["content"]) {
                   let headlines = [];
 
-                  summary = await summarizeText(obj["content"]);
+                  //summary = await summarizeText(obj["content"]);
                   //console.log("______________________________");
                   //prediction = await classifyData(summary);
                   //console.log(JSON.stringify(prediction));
@@ -170,7 +170,7 @@ async function cnn() {
                           ttle: each.ttle.substring(0, 5000),
                           lbl: each.lbl.replace(/\//g, ""),
                           lnk: each.lnk,
-                          content: each["content"].replace(/\'/g, "").replace(/\`/g, ""),
+                          content: each["content"].replace(/\'/g, "").replace(/\`/g, "").replace(/\’/g, ""),
                           prediction: prediction,
                           imgLink: each.imageLink
                         }));
@@ -355,7 +355,7 @@ async function updateSentimentDetails(lnks, predictions) {
           prediction: { type: oracledb.STRING, maxSize: 500 }
       }
   };
-      
+
   if (binds.length){
       var results = await conn.executeMany(updateStatement, binds, options);            
       console.log(JSON.stringify(results));

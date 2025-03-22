@@ -19,12 +19,7 @@ var { railwayScraping, classifyData, createTraining, embedData , getSentiment}  
 var { cnbc_scraper, cnbc_classification, cnbc_industry_classification, cnbc_sentiment_analysis }  = require('./cnbc/cnbc'); 
 var { cnn, cnn_classification, cnn_industry_classification,cnn_sentiment_analysis }  = require('./cnn/cnn'); 
 
-var { bloomberg }  = require('./bloomberg/blommberg'); 
-var { yahoo }  = require('./yahoo/yahoo'); 
-var { insider }  = require('./insider/insider'); 
-var { marketwatch }  = require('./marketwatch/marketwatch'); 
-var { wsj }  = require('./wsj/wsj'); 
-var {forbes} = require("./forbes/forbes");
+var { reuters_scraper }  = require('./reuters/reuters'); 
 
 const clientRoutes = require("./src/routes/clientRoutes");
 const industryRoutes = require("./src/routes/industryRoutes");
@@ -128,15 +123,8 @@ app.get("/load/cnn", cors(corsOptions), async (req, res, next) => {
 })
 
 // Handling GET /hello request
-app.get("/load/marketwatch", cors(corsOptions), async (req, res, next) => {
-    var ls = await marketwatch();
-    console.log(JSON.stringify(ls));
-    res.send(JSON.stringify(ls));
-})
-
-// Handling GET /hello request
-app.get("/load/wsj", cors(corsOptions), async (req, res, next) => {
-    var ls = await wsj();
+app.get("/load/reuters", cors(corsOptions), async (req, res, next) => {
+    var ls = await reuters_scraper();
     console.log(JSON.stringify(ls));
     res.send(JSON.stringify(ls));
 })

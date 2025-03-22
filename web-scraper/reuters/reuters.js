@@ -22,164 +22,163 @@ async function db_connect(){
     return connection;
 }
 
-async function cnbc_scraper() {
+async function reuters_scraper() {
     // downloading the target web page
     // by performing an HTTP GET request in Axios
 
-    var conn = await db_connect();
+    var headlines=[];
+    var pgs = [];
 
-    var pages = [];
-
-    var page_url = "https://www.cnbc.com";
+    var page_url = "https://www.bloomberg.com/technology";
 
     console.log(page_url);
 
+    pgs.push({"label":'Technology', "page": "https://www.bloomberg.com/technology"});
+    pgs.push({"label":'Industries', "page": "https://www.bloomberg.com/industries"});
+
+    for (var page_url of pgs){
     var axiosResponse = await axios.request({
             method: "GET",        
-            url: page_url,
+            url: page_url["page"],
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
             }
     });
-    const $ = cheerio.load(axiosResponse.data)
+    var $ = cheerio.load(axiosResponse.data)
 
-    $(".nav-menu-subLink").each((ind, el) => {
+    $(".SectionFrontHeaderBrand_link__JxlxC a").each((ind, el) => {
         console.log($(el).html());
        // $(el).find("a").each(async (ind, lnk) => {
-        pages.push($(el).attr("href"));
+        pgs.push({"label":$(el).html(), "page": $(el).attr("href")});
        // });
     });
 
-    console.log(JSON.stringify(pages));
+    console.log(JSON.stringify(pgs));
 
-    for (var page_each of pages){
-
-        console.log("+++" + page_url+page_each);
-
+    for (var page_each of pgs){
         try {
+            var obj = {};
             axiosResponse = await axios.request({
                     method: "GET",        
-                    url: page_url+page_each,
+                    url: page_each["page"],
                     headers: {
                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
                     }
             });
-            const $ = cheerio.load(axiosResponse.data)
 
-            $(".Card-card").each((ind1,card)=>{
+            $ = cheerio.load(axiosResponse.data)
 
-                var images = $(card).find(".Card-imageContainer");
-                var titleContainers = $(card).find(".Card-titleContainer");
+            $(".LineupContentArchive_itemContainer__jXMs_").each(async (ind1,card)=>{
 
-                titleContainers.each((ind2, el) => {
-                    var obj = {};
-                    $(el).find("a").each(async (ind, lnk) => {
-                        obj["ttle"] = $(lnk).html().trim();
-                        obj["lnk"] = $(lnk).attr("href");
-                        obj["lbl"] = page_each;
-                        let headlines = [];
+                var image = $(card).find(".Media_linkedImage__1R4j5");
+                var titleContainers = $(card).find(".Headline_phoenix__Dvz0u");
 
-                        var pics = $(images[ind2]).find('picture');
+                var anchorLink = $(card).find(".LineupContentArchive_storyLink__Umeq4");
 
-                        var img_lnk = '#';
-                        pics.each((ind3,pic) => {
-                            $(pic).find('source').each((ind4,srce) => {
-                                if (ind4==0)
-                                    img_lnk = $(srce).attr('srcset');
-                            });
-                        });
+                anchorLink.each((ind, ech_lnk) => {
+                    obj["link"] = 'https://www.bloomberg.com'+ $(ech_lnk).attr("href");
+                });
 
+                obj["label"] = page_each["label"];             
+                
+                obj["title"] = $(titleContainers).find('span').html();    
+
+                var pics = $(image).find('picture');
+
+                var img_lnk = '#';
+                pics.each((ind3,pic) => {
+                    $(pic).find('source').each((ind4,srce) => {
+                        if (ind4==0)
+                            img_lnk = $(srce).attr('srcset');
+                    });
+                });
+
+
+                if (img_lnk && img_lnk.split(",").length)
+                  img_lnk = img_lnk.split(",")[1];
+                
+                if (img_lnk && img_lnk.trim().split(" ").length)
+                  img_lnk = img_lnk.trim().split(" ")[0];
+
+                console.log(img_lnk);
+                
+                obj["img_lnk"] = img_lnk;
+
+                if (headlines.filter(each => (each["link"] ==  obj["link"])).length == 0){
+                    headlines.push(obj);
+                    console.log(JSON.stringify(obj));
+                    console.log("===========================");
+
+                    var options = {
+                        autoCommit: false,
+                        bindDefs: {
+                        ttle: { type: oracledb.STRING, maxSize: 5000 },
+                        lbl: { type: oracledb.STRING, maxSize: 500 },
+                        lnk: { type: oracledb.STRING, maxSize: 5000 },
+                        content: { type: oracledb.STRING, maxSize: 10000 },
+                        prediction: { type: oracledb.STRING, maxSize: 100 },
+                        imgLink: { type: oracledb.STRING, maxSize: 5000 }
+                        }
+                    };
+
+                  try {
+                                  
+                    var prediction = "OPPORTUNITY";
+
+                    var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink)`;
+
+                    headlines.slice(headlines.length -1, headlines.length).map(async (each, idx) => {
+
+                        var binds = [{
+                            ttle: each.title.replace(/\'/g, "").replace(/\`/g, "").replace(/\’/g, ""),
+                            lbl: each.label.replace(/\//g, ""),
+                            lnk: each.link,
+                            content: each.title.replace(/\'/g, "").replace(/\`/g, "").replace(/\’/g, ""),
+                            prediction: prediction,
+                            imgLink: each.img_lnk
+                        }];
+                    
+                        console.log(JSON.stringify(binds));
+                    
                         try{
-                            /*const pageResp = await axios.request({
-                                method: "GET",
-                                url: obj["lnk"],
-                                headers: {
-                                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
-                                }
-                            });
 
-                            const $_page = cheerio.load(pageResp.data)
-                            var all_content = [];
-                            
-                            $_page(".ArticleBody-articleBody").each((ind2, el2) => {
-                                $(el2).find("p").each(async (ind, dt) => {
-                                    all_content.push($(dt).html());
-                                });
-                            });
+                            var conn = await db_connect();
 
-                            obj["content"] = all_content.join();
-                            obj["content"] = obj["ttle"];
-                            try{
-                                if (obj["content"])
-                                    obj["content"] = await summarizeText(obj["content"]);
-                                else 
-                                    return;
-                            } catch(ex){
-                                //console.log(ex.message);
-                            }*/                                    
-                            obj["content"] = "";
-                            var prediction = 'OPPORTUNITY';
-                            //if (obj["content"] && obj["content"].trim())
-                            //prediction = await classifyData(obj["content"]);
+                            var results = await conn.executeMany(
+                            insertStatement,
+                            binds,
+                            options
+                            );
 
-                            headlines.push(obj);
+                            console.log(JSON.stringify(results));
 
-                            try{
-                    
-                    
-                                var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink)`;
-                    
-                                var binds = headlines.map((each, idx) => ({
-                                    ttle: each.ttle.substr(0,5000).replace(/\'/g,'').replace(/\"/g,'').replace(/\`/g,'').replace(/\’/g, ""),
-                                    lbl: each.lbl.replace(/\//g,''),
-                                    lnk: each.lnk,
-                                    content: each.content.replace(/\'/g,'').replace(/\"/g,'').replace(/\`/g,'').replace(/\’/g, "").substr(0,10000),
-                                    prediction: prediction,
-                                    imgLink: img_lnk ? img_lnk : '#'
-                                }));            
-            
+                            await conn.commit();
 
-                                var options = {
-                                    autoCommit: false,
-                                    bindDefs: {
-                                        ttle: { type: oracledb.STRING, maxSize: 5000 },
-                                        lbl: { type: oracledb.STRING, maxSize: 500 },
-                                        lnk: { type: oracledb.STRING, maxSize: 5000 },
-                                        content: { type: oracledb.STRING, maxSize: 10000 },
-                                        prediction: { type: oracledb.STRING, maxSize: 500 },
-                                        imgLink: { type: oracledb.STRING, maxSize: 5000 }
-                                    }
-                                }; 
+                            await conn.close();
 
-                                        
-                                console.log(insertStatement);
-                                console.log(JSON.stringify(binds));
-                                console.log(JSON.stringify(options));
-
-
-                                if (binds.length){
-                                    var results = await conn.executeMany(insertStatement, binds, options);            
-                                    console.log(JSON.stringify(results));
-                                }
-                    
-                                await conn.commit();
-                    
-                            } catch(ex) {
-                                console.log(ex.message);
-                            }
-
-                        } catch(ex) {
+                        } catch(ex){
                             console.log(ex.message);
                         }
                     });
-                });
-            });           
+
+                  } catch (ex) {
+                    console.log(ex.message);
+                  }
+
+
+                }
+
+            });
         } catch(ex){
             console.log(ex.message);
         }    
     }
-    await conn.close();
 
+    console.log(JSON.stringify(headlines));
+
+    console.log(JSON.stringify(headlines.length));
+
+    }
     //return classify;
 }
 
@@ -391,7 +390,7 @@ async function updateAnalyticsDetails(lnks, predictions) {
 }
 
 module.exports = {
-    cnbc_scraper : cnbc_scraper,
+    reuters_scraper : reuters_scraper,
     cnbc_classification: cnbc_classification,
     cnbc_industry_classification :cnbc_industry_classification,
     db_connect: db_connect,
