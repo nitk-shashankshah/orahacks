@@ -229,6 +229,92 @@ async function cnn() {
   //return classify;
 }
 
+async function cnn_get_content() {
+
+  var conn = await db_connect();
+                             
+  var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://edition.cnn.com%' and ("CONTENT"='' or "CONTENT" IS NULL or LOWER("TITLE")=LOWER("CONTENT"))`;
+  
+  const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+
+  for (var i=0;i<results.rows.length;i++){
+
+      var obj = {};
+
+      obj["link"] = results.rows[i]["LINK"];
+
+      const pageResp = await axios.request({
+          method: "GET",
+          url: results.rows[i]["LINK"],
+          headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+          }
+      });
+
+      const $_page = cheerio.load(pageResp.data)
+      var all_content = [];
+                          
+      $_page(".ArticleBody-articleBody").each((ind2, el2) => {
+          $_page(el2).find("p").each(async (ind, dt) => {
+              all_content.push($_page(dt).html());
+          });
+      });
+
+      obj["content"] = all_content.join();
+      
+      try{
+          if (obj["content"])
+              obj["content"] = await summarizeText(obj["content"]);           
+
+          await updateContent(obj, conn);
+      } catch(ex){
+          //console.log(ex.message);
+      }        
+  }
+
+  await conn.close();
+
+}
+
+
+async function updateContent(obj, conn) {
+  // downloading the target web page
+  // by performing an HTTP GET request in Axios
+
+  //var conn = await db_connect();
+
+  var updateStatement = `update ORAHACKS_SCRAPING set "CONTENT"=:content where "LINK"=:lnk`;
+                  
+  var binds = [];
+
+  binds.push({
+      lnk: obj["link"],
+      content: obj["content"]
+  });
+
+  console.log("binds: " + JSON.stringify(binds));
+
+  var options = {
+      autoCommit: false,
+      bindDefs: {           
+          lnk: { type: oracledb.STRING, maxSize: 5000 },
+          content: { type: oracledb.STRING, maxSize: 5000 }
+      }
+  };
+      
+  if (binds.length){
+      var results = await conn.executeMany(updateStatement, binds, options);            
+      console.log(JSON.stringify(results));
+  }
+
+  await conn.commit();
+
+  //await conn.close();                            
+  //return classify;
+}
+
+
+
 
 async function cnn_classification() {
   // downloading the target web page
@@ -440,6 +526,7 @@ async function updateIndustryDetails(lnks, industries) {
 module.exports = {
   cnn: cnn,
   db_connect: db_connect,
+  cnn_get_content: cnn_get_content,
   cnn_industry_classification: cnn_industry_classification,
   cnn_classification: cnn_classification,
   cnn_sentiment_analysis:cnn_sentiment_analysis

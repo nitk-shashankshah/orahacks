@@ -89,34 +89,7 @@ async function cnbc_scraper() {
                             });
                         });
 
-                        try{
-                            /*const pageResp = await axios.request({
-                                method: "GET",
-                                url: obj["lnk"],
-                                headers: {
-                                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
-                                }
-                            });
-
-                            const $_page = cheerio.load(pageResp.data)
-                            var all_content = [];
-                            
-                            $_page(".ArticleBody-articleBody").each((ind2, el2) => {
-                                $(el2).find("p").each(async (ind, dt) => {
-                                    all_content.push($(dt).html());
-                                });
-                            });
-
-                            obj["content"] = all_content.join();
-                            obj["content"] = obj["ttle"];
-                            try{
-                                if (obj["content"])
-                                    obj["content"] = await summarizeText(obj["content"]);
-                                else 
-                                    return;
-                            } catch(ex){
-                                //console.log(ex.message);
-                            }*/                                    
+                        try{                              
                             obj["content"] = "";
                             var prediction = 'OPPORTUNITY';
                             //if (obj["content"] && obj["content"].trim())
@@ -183,6 +156,104 @@ async function cnbc_scraper() {
     //return classify;
 }
 
+async function cnbc_get_content() {
+
+    var conn = await db_connect();
+                               
+    var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://www.cnbc.com%' and ("CONTENT"='' or "CONTENT" IS NULL or LOWER("TITLE")=LOWER("CONTENT"))`;
+    
+    const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+   
+
+    for (var i=0;i<results.rows.length;i++){
+
+        var obj = {};
+
+        obj["link"] = results.rows[i]["LINK"];
+
+        const pageResp = await axios.request({
+            method: "GET",
+            url: obj["lnk"],
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+            }
+        });
+
+        const $_page = cheerio.load(pageResp.data)
+        var all_content = [];
+                            
+        $_page(".ArticleBody-articleBody").each((ind2, el2) => {
+            $_page(el2).find("p").each(async (ind, dt) => {
+                all_content.push($(dt).html());
+            });
+        });
+
+        obj["content"] = all_content.join();
+        obj["content"] = obj["ttle"];
+        try{
+            if (obj["content"])
+                obj["content"] = await summarizeText(obj["content"]);
+            else 
+                return;
+        } catch(ex){
+            console.log(ex.message);
+        }
+      
+        obj["content"] = all_content.join();
+        
+        try{
+            if (obj["content"])
+                obj["content"] = await summarizeText(obj["content"]);           
+
+            await updateContent(obj, conn);
+        } catch(ex){
+            //console.log(ex.message);
+        }        
+    }
+
+    await conn.close();
+
+}
+
+
+async function updateContent(obj, conn) {
+    // downloading the target web page
+    // by performing an HTTP GET request in Axios
+
+    //var conn = await db_connect();
+
+    var updateStatement = `update ORAHACKS_SCRAPING set "CONTENT"=:content where "LINK"=:lnk`;
+                    
+    var binds = [];
+
+    binds.push({
+        lnk: obj["link"],
+        content: obj["content"]
+    });
+
+    console.log("binds: " + JSON.stringify(binds));
+
+    var options = {
+        autoCommit: false,
+        bindDefs: {           
+            lnk: { type: oracledb.STRING, maxSize: 5000 },
+            content: { type: oracledb.STRING, maxSize: 5000 }
+        }
+    };
+        
+    if (binds.length){
+        var results = await conn.executeMany(updateStatement, binds, options);            
+        console.log(JSON.stringify(results));
+    }
+
+    await conn.commit();
+
+    //await conn.close();                            
+    //return classify;
+}
+
+
+
 async function cnbc_industry_classification() {
     // downloading the target web page
     // by performing an HTTP GET request in Axios
@@ -196,7 +267,7 @@ async function cnbc_industry_classification() {
     await conn.close();
 
     for (var i=0;i<results.rows.length;i++){
-        var ls = results.rows.map(each=>each["CONTENT"]).slice(i,i+96);
+        var ls = results.rows.map(each=>each["TITLE"]).slice(i,i+96);
         
         console.log(JSON.stringify(ls));
         
@@ -395,5 +466,6 @@ module.exports = {
     cnbc_classification: cnbc_classification,
     cnbc_industry_classification :cnbc_industry_classification,
     db_connect: db_connect,
+    cnbc_get_content: cnbc_get_content,
     cnbc_sentiment_analysis: cnbc_sentiment_analysis
 }
