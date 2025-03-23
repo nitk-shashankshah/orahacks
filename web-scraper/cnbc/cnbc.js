@@ -363,13 +363,13 @@ async function cnbc_sentiment_analysis() {
 
     var conn = await db_connect();
 
-    var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://www.cnbc.com%'`;
+    var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://www.cnbc.com%' and "INDUSTRY" IS NOT NULL and "VECTOR" IS NULL`;
         
     const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
     
     for (var i=0;i<results.rows.length;i+=96){
       
-        var ls = results.rows.map(each=>each["CONTENT"]).slice(i,i+96);
+        var ls = results.rows.map(each=>each["TITLE"]).slice(i,i+96);
         predictions = await sentimentAnalysis(ls);
   
         await updateSentimentDetails(results.rows.slice(i,i+96).map(each => each["LINK"]), predictions);

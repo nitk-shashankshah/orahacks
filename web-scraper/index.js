@@ -19,7 +19,7 @@ var { railwayScraping, classifyData, createTraining, embedData , getSentiment}  
 var { cnbc_scraper, cnbc_get_content, cnbc_classification, cnbc_industry_classification, cnbc_sentiment_analysis }  = require('./cnbc/cnbc'); 
 var { cnn, cnn_classification, cnn_industry_classification,cnn_sentiment_analysis }  = require('./cnn/cnn'); 
 
-var { reuters_scraper }  = require('./reuters/reuters'); 
+var { reuters_scraper, reuters_industry_classification, reuters_get_content, reuters_classification, reuters_sentiment_analysis  }  = require('./reuters/reuters'); 
 
 const clientRoutes = require("./src/routes/clientRoutes");
 const industryRoutes = require("./src/routes/industryRoutes");
@@ -80,22 +80,15 @@ app.get("/load/railway", cors(corsOptions), async (req, res, next) => {
 app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
     //var ls = await cnbc_scraper();
     //let ls = await cnbc_industry_classification();
-    var ls = await cnbc_get_content();
+    //var ls = await cnbc_get_content();
     //ls = await cnbc_classification();
-    //var sentiment = await cnbc_sentiment_analysis()
+    var sentiment = await cnbc_sentiment_analysis()
     res.send(JSON.stringify({}));
 })
 
 // Handling GET /hello request
 app.get("/load/forbes", cors(corsOptions), async (req, res, next) => {
     var ls = await forbes();
-    console.log(JSON.stringify(ls));
-    res.send(JSON.stringify(ls));
-})
-
-// Handling GET /hello request
-app.get("/load/bloogberg", cors(corsOptions), async (req, res, next) => {
-    var ls = await bloomberg();
     console.log(JSON.stringify(ls));
     res.send(JSON.stringify(ls));
 })
@@ -118,15 +111,19 @@ app.get("/load/insider", cors(corsOptions), async (req, res, next) => {
 app.get("/load/cnn", cors(corsOptions), async (req, res, next) => {
     //var ls = await cnn();
     //var cls = await cnn_industry_classification();
-    var ls = await cnbc_get_content();
+    //var ls = await cnbc_get_content();
     //cls = await cnn_classification();
-    //var cls = await cnn_sentiment_analysis();
+    var cls = await cnn_sentiment_analysis();
     res.send(JSON.stringify(cls));
 })
 
 // Handling GET /hello request
 app.get("/load/reuters", cors(corsOptions), async (req, res, next) => {
-    var ls = await reuters_scraper();
+    //var ls = await reuters_scraper();
+    //let ls = await reuters_industry_classification();
+    //let ls = await reuters_get_content();
+    //let ls = await reuters_classification();
+    let ls = await reuters_sentiment_analysis();
     console.log(JSON.stringify(ls));
     res.send(JSON.stringify(ls));
 })

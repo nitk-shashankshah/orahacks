@@ -6,7 +6,6 @@ const classifyData = require('../classify');
 const industryClassifyData = require('../industryClassify');
 const sentimentAnalysis = require('../sentiment');
 
-
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
 async function db_connect(){
@@ -182,13 +181,13 @@ async function reuters_scraper() {
     //return classify;
 }
 
-async function cnbc_industry_classification() {
+async function reuters_industry_classification() {
     // downloading the target web page
     // by performing an HTTP GET request in Axios
 
     var conn = await db_connect();
                                
-    var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://www.cnbc.com%' and "INDUSTRY" IS NULL`;
+    var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%www.bloomberg.com%' and "INDUSTRY" IS NULL`;
     
     const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
    
@@ -250,10 +249,9 @@ async function updateIndustryDetails(lnks, industries) {
     //return classify;
 }
 
-async function cnbc_classification() {
+async function reuters_classification() {
     // downloading the target web page
     // by performing an HTTP GET request in Axios
-
 
     var industries = ['TECH','HEALTHCARE','AI','SPORT','SEMICONDUCTORS'];
                         
@@ -261,14 +259,13 @@ async function cnbc_classification() {
 
         var conn = await db_connect();
 
-        var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://www.cnbc.com%' and "INDUSTRY" in ('${industry.toUpperCase()}')`;
+        var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%www.bloomberg.com%' and ("INDUSTRY" in ('${industry.toUpperCase()}') OR UPPER("LABEL") LIKE ('%${industry.toUpperCase()}%'))`;
         
         const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
-    
 
         for (var i=0;i<results.rows.length;i+=96){
       
-            var ls = results.rows.filter(each => ((each["INDUSTRY"] ? each["INDUSTRY"].split(",") : []).indexOf(industry)>=0 ? true : false)).map(each=>each["CONTENT"]).slice(i,i+96);
+            var ls = results.rows.filter(each => ((each["INDUSTRY"] ? each["INDUSTRY"].split(",") : []).indexOf(industry)>=0 ? true : false)).map(each=>each["TITLE"]).slice(i,i+96);
             predictions = await classifyData(ls, industry);
   
             console.log("ls:" + ls);
@@ -285,19 +282,19 @@ async function cnbc_classification() {
     //return classify;
 }
 
-async function cnbc_sentiment_analysis() {
+async function reuters_sentiment_analysis() {
     // downloading the target web page
     // by performing an HTTP GET request in Axios                    
 
     var conn = await db_connect();
 
-    var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://www.cnbc.com%'`;
+    var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%www.bloomberg.com%'`;
         
     const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
     
     for (var i=0;i<results.rows.length;i+=96){
       
-        var ls = results.rows.map(each=>each["CONTENT"]).slice(i,i+96);
+        var ls = results.rows.map(each=>each["TITLE"]).slice(i,i+96);
         predictions = await sentimentAnalysis(ls);
   
         await updateSentimentDetails(results.rows.slice(i,i+96).map(each => each["LINK"]), predictions);
@@ -389,10 +386,59 @@ async function updateAnalyticsDetails(lnks, predictions) {
     //return classify;
 }
 
+
+async function reuters_get_content() {
+
+    var conn = await db_connect();
+                               
+    var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%www.bloomberg.com%' and ("CONTENT"='' or "CONTENT" IS NULL or LOWER("TITLE")=LOWER("CONTENT"))`;
+    
+    const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+  
+    for (var i=0;i<results.rows.length;i++){
+  
+        var obj = {};
+  
+        obj["link"] = results.rows[i]["LINK"];
+  
+        const pageResp = await axios.request({
+            method: "GET",
+            url: results.rows[i]["LINK"],
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+            }
+        });
+  
+        const $_page = cheerio.load(pageResp.data)
+        var all_content = [];
+                            
+        $_page(".ArticleBody-articleBody").each((ind2, el2) => {
+            $_page(el2).find("p").each(async (ind, dt) => {
+                all_content.push($_page(dt).html());
+            });
+        });
+  
+        obj["content"] = all_content.join();
+        
+        try{
+            if (obj["content"])
+                obj["content"] = await summarizeText(obj["content"]);           
+  
+            await updateContent(obj, conn);
+        } catch(ex){
+            //console.log(ex.message);
+        }        
+    }
+  
+    await conn.close();
+  
+  }
+
 module.exports = {
     reuters_scraper : reuters_scraper,
-    cnbc_classification: cnbc_classification,
-    cnbc_industry_classification :cnbc_industry_classification,
+    reuters_classification: reuters_classification,
+    reuters_industry_classification : reuters_industry_classification,
     db_connect: db_connect,
-    cnbc_sentiment_analysis: cnbc_sentiment_analysis
+    reuters_get_content: reuters_get_content,
+    reuters_sentiment_analysis: reuters_sentiment_analysis
 }

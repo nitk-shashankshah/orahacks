@@ -109,38 +109,7 @@ async function cnn() {
             };
             console.log(JSON.stringify(obj));
 
-            try {
-              /*const pageResp = await axios.request({
-                method: "GET",
-                url: obj["lnk"],
-                
-                headers: {
-                  "User-Agent":
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
-                },
-              });
-
-              const $_page = cheerio.load(pageResp.data);
-              var all_content = [];
-              //console.log("length: " +$_page(".article__content-container").length);
-
-              $_page(".article__content-container").each((ind2, el2) => {
-                $(el2)
-                  .find("p")
-                  .each((ind, dt) => {
-                    all_content.push($(dt).html().trim());
-                  });
-              });*/
-
-              /*obj["content"] = all_content
-                .join()
-                .replace(/\'/g, "")
-                .replace(/\”/g, "")
-                .toString()
-                .substring(0, 10000);
-
-              console.log(obj["content"]);*/
-
+            try {            
               var summary = "";
               //var prediction = "";
               try {
@@ -217,10 +186,6 @@ async function cnn() {
         //console.log("Error fetching headlines:", ex.message);
         //continue;
       }
-
-
-
-
     }
 
     //await conn.close();
@@ -320,7 +285,6 @@ async function cnn_classification() {
   // downloading the target web page
   // by performing an HTTP GET request in Axios
 
-
   var industries = ['TECH','HEALTHCARE','AI','SPORT','SEMICONDUCTORS'];
                       
   for (var industry of industries){
@@ -333,7 +297,7 @@ async function cnn_classification() {
   
       for (var i=0;i<results.rows.length;i+=96){
       
-          var ls = results.rows.filter(each => ((each["INDUSTRY"] ? each["INDUSTRY"].split(",") : []).indexOf(industry)>=0 ? true : false)).map(each=>each["CONTENT"]).slice(i,i+96);
+          var ls = results.rows.filter(each => ((each["INDUSTRY"] ? each["INDUSTRY"].split(",") : []).indexOf(industry)>=0 ? true : false)).map(each=>each["TITLE"]).slice(i,i+96);
           predictions = await classifyData(ls, industry);
 
           console.log("ls:" + ls);
@@ -396,13 +360,13 @@ async function cnn_sentiment_analysis() {
 
   var conn = await db_connect();
 
-  var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://edition.cnn.com%'`;
+  var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://edition.cnn.com%' and "INDUSTRY" IS NOT NULL`;
       
   const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
   
   for (var i=0;i<results.rows.length;i+=96){
     
-      var ls = results.rows.map(each=>each["CONTENT"]).slice(i,i+96);
+      var ls = results.rows.map(each=>each["TITLE"]).slice(i,i+96);
       predictions = await sentimentAnalysis(ls);
 
       await updateSentimentDetails(results.rows.slice(i,i+96).map(each => each["LINK"]), predictions);
@@ -460,14 +424,14 @@ async function cnn_industry_classification() {
 
   var conn = await db_connect();
                              
-  var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://edition.cnn.com%'`;
+  var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://edition.cnn.com%'  and "INDUSTRY" IS NULL`;
   
   const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
  
   await conn.close();
 
   for (var i=0;i<results.rows.length;i++){
-      var ls = results.rows.map(each=>each["CONTENT"]).slice(i,i+96);
+      var ls = results.rows.map(each=>each["TITLE"]).slice(i,i+96);
       
       console.log(JSON.stringify(ls));
       
