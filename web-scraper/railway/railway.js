@@ -188,10 +188,14 @@ async function classifyData(lbl,class_type) {
        var temp = {};
        var fnd_lnk = '';
        for (var lk of grp){
-        if (lnkObj[lk]["CLASSIFICATION"].toUpperCase() !== "SPAM" && lnkObj[lk]["CLASSIFICATION"].toUpperCase() !== "OPPORTUNITY"){
+        if (!lnkObj[lk]["CLASSIFICATION"]) {
             fnd_lnk=lk;
         }
 
+        if (lnkObj[lk]["CLASSIFICATION"] && (lnkObj[lk]["CLASSIFICATION"].toUpperCase() !== "OPPORTUNITY" || lnkObj[lk]["CLASSIFICATION"].toUpperCase() !== "SPAM")){
+            fnd_lnk=lk;
+        }
+        
         if (lnkObj[lk]["CLASSIFICATION"] == "OPPORTUNITY"){
             temp = JSON.parse(JSON.stringify(lnkObj[lk]));
             found=1;
