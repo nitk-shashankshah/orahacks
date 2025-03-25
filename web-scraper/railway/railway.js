@@ -186,13 +186,23 @@ async function classifyData(lbl,class_type) {
     for (var grp of groups){
        var found = 0;
        var temp = {};
+       var fnd_lnk = '';
        for (var lk of grp){
+        if (lnkObj[lk]["CLASSIFICATION"].toUpperCase() !== "SPAM" && lnkObj[lk]["CLASSIFICATION"].toUpperCase() !== "OPPORTUNITY"){
+            fnd_lnk=lk;
+        }
+
         if (lnkObj[lk]["CLASSIFICATION"] == "OPPORTUNITY"){
             temp = JSON.parse(JSON.stringify(lnkObj[lk]));
             found=1;
             break;
         }
        }
+
+       if (found==0){
+            temp = JSON.parse(JSON.stringify(lnkObj[fnd_lnk]));
+       }
+
        temp["TIMELINE"] = grp.map(each => lnkObj[each]);
        if (grp.length>1)
         finalLs.unshift(temp);
