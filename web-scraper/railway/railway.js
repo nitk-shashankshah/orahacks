@@ -137,7 +137,7 @@ async function classifyData(lbl,class_type) {
 
     var conn = await db_connect();
 
-    const results = await conn.execute(`select "TITLE","LABEL","LINK","CLASSIFICATION","IMAGE_LINK","INDUSTRY","VECTOR" from ORAHACKS_SCRAPING where (UPPER("INDUSTRY") like '%${lbl.toUpperCase()}%' OR  UPPER("LABEL") like '${lbl.toUpperCase()}%') and  UPPER("CLASSIFICATION") like '%${class_type.toUpperCase()}%'`, []);
+    const results = await conn.execute(`select "TITLE","LABEL","LINK","CLASSIFICATION","IMAGE_LINK","INDUSTRY","VECTOR", "SENTIMENT" from ORAHACKS_SCRAPING where (UPPER("INDUSTRY") like '%${lbl.toUpperCase()}%' OR  UPPER("LABEL") like '${lbl.toUpperCase()}%')`, []);
 
     var ls = results.rows.filter(each => {
         var ls = []
@@ -150,6 +150,69 @@ async function classifyData(lbl,class_type) {
 
         return false;
     });
+
+    var obj = await getSimilarities(ls);
+
+    var groups = [];
+
+    for (var k of ls.map(each => each["LINK"])){
+        var group = [];
+        var flg = 0;
+        for (var grp of groups){
+            if (grp.indexOf(k)>=0){
+                flg=1;
+                group = grp;
+                break;
+            }
+        }
+    
+        if (flg == 0){
+            group.push(k);
+            groups.push(group);
+        }
+        
+        makeGroup(k, group, obj);
+
+    }
+
+    var lnkObj = {};
+ 
+    ls.map(each => {
+        delete each["VECTOR"];
+        lnkObj[each["LINK"]] = each;
+    });
+
+    var finalLs = [];
+    for (var grp of groups){
+       var found = 0;
+       var temp = {};
+       for (var lk of grp){
+        if (lnkObj[lk]["CLASSIFICATION"] == "OPPORTUNITY"){
+            temp = JSON.parse(JSON.stringify(lnkObj[lk]));
+            found=1;
+            break;
+        }
+       }
+       temp["TIMELINE"] = grp.map(each => lnkObj[each]);
+       if (grp.length>1)
+        finalLs.unshift(temp);
+       else 
+        finalLs.push(temp);
+    }
+
+    await conn.close();
+
+    return finalLs;
+}
+
+
+async function getTimeLine(vector) {
+
+    var conn = await db_connect();
+
+    const results = await conn.execute(`select "TITLE","LABEL","LINK","CLASSIFICATION","IMAGE_LINK","INDUSTRY","VECTOR" from ORAHACKS_SCRAPING `, []);
+
+    var ls = results.rows[0];
 
     var obj = await getSimilarities(ls);
 

@@ -360,7 +360,7 @@ async function cnn_sentiment_analysis() {
 
   var conn = await db_connect();
 
-  var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://edition.cnn.com%' and "INDUSTRY" IS NOT NULL`;
+  var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://edition.cnn.com%' and "INDUSTRY" IS NOT NULL and "SENTIMENT" IS NULL`;
       
   const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
   
