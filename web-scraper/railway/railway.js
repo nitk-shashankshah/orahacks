@@ -135,88 +135,98 @@ async function railwayScraping() {
 
 async function classifyData(lbl,class_type) {
 
-    var conn = await db_connect();
+    try{
+        var conn = await db_connect();
 
-    const results = await conn.execute(`select "TITLE","LABEL","LINK","CLASSIFICATION","IMAGE_LINK","INDUSTRY","VECTOR", "SENTIMENT" from ORAHACKS_SCRAPING where (UPPER("INDUSTRY") like '%${lbl.toUpperCase()}%' OR  UPPER("LABEL") like '${lbl.toUpperCase()}%')`, []);
+        const results = await conn.execute(`select "TITLE","LABEL","LINK","CLASSIFICATION","IMAGE_LINK","INDUSTRY","VECTOR", "SENTIMENT" from ORAHACKS_SCRAPING where (UPPER("INDUSTRY") like '%${lbl.toUpperCase()}%' OR  UPPER("LABEL") like '${lbl.toUpperCase()}%')`, []);
 
-    var ls = results.rows.filter(each => {
-        var ls = []
-        if (each["INDUSTRY"]){
-            ls = each["INDUSTRY"].split(",");
-        }           
+        var ls = results.rows.filter(each => {
+            var ls = []
+            if (each["INDUSTRY"]){
+                ls = each["INDUSTRY"].split(",");
+            }           
 
-        if (ls.indexOf(lbl.toUpperCase())>=0)
-            return true;              
+            if (ls.indexOf(lbl.toUpperCase())>=0)
+                return true;              
 
-        return false;
-    });
+            return false;
+        });
 
-    var obj = await getSimilarities(ls);
+        var obj = await getSimilarities(ls);
 
-    var groups = [];
+        var groups = [];
 
-    for (var k of ls.map(each => each["LINK"])){
-        var group = [];
-        var flg = 0;
+        for (var k of ls.map(each => each["LINK"])){
+            var group = [];
+            var flg = 0;
+            for (var grp of groups){
+                if (grp.indexOf(k)>=0){
+                    flg=1;
+                    group = grp;
+                    break;
+                }
+            }
+        
+            if (flg == 0){
+                group.push(k);
+                groups.push(group);
+            }
+            
+            makeGroup(k, group, obj);
+
+        }
+
+        var lnkObj = {};
+    
+        ls.map(each => {
+            delete each["VECTOR"];
+            lnkObj[each["LINK"]] = each;
+        });
+
+        var finalLs = [];
         for (var grp of groups){
-            if (grp.indexOf(k)>=0){
-                flg=1;
-                group = grp;
+        var found = 0;
+        var temp = {};
+        var fnd_lnk = '';
+        for (var lk of grp){
+            if (!lnkObj[lk]["CLASSIFICATION"]) {
+                fnd_lnk=lk;
+            }
+
+            if (lnkObj[lk]["CLASSIFICATION"] && (lnkObj[lk]["CLASSIFICATION"].toUpperCase() !== "OPPORTUNITY" && lnkObj[lk]["CLASSIFICATION"].toUpperCase() !== "SPAM")){
+                fnd_lnk=lk;
+            }
+            
+            if (lnkObj[lk]["CLASSIFICATION"] == "OPPORTUNITY"){
+                temp = JSON.parse(JSON.stringify(lnkObj[lk]));
+                found=1;
                 break;
             }
         }
-    
-        if (flg == 0){
-            group.push(k);
-            groups.push(group);
-        }
-        
-        makeGroup(k, group, obj);
 
+        if (found==0){
+                if (fnd_lnk)
+                    temp = JSON.parse(JSON.stringify(lnkObj[fnd_lnk]));
+                else {
+                    if (lnkObj[grp[0]]["CLASSIFICATION"].toUpperCase() == 'SPAM')
+                        continue;
+                    temp = JSON.parse(JSON.stringify(lnkObj[grp[0]]));
+                }
+        }
+
+        temp["TIMELINE"] = grp.map(each => lnkObj[each]);
+        if (grp.length>1)
+            finalLs.unshift(temp);
+        else 
+            finalLs.push(temp);
+        }
+
+        await conn.close();
+
+        return finalLs;
+    } catch(ex){
+        return [];
     }
-
-    var lnkObj = {};
- 
-    ls.map(each => {
-        delete each["VECTOR"];
-        lnkObj[each["LINK"]] = each;
-    });
-
-    var finalLs = [];
-    for (var grp of groups){
-       var found = 0;
-       var temp = {};
-       var fnd_lnk = '';
-       for (var lk of grp){
-        if (!lnkObj[lk]["CLASSIFICATION"]) {
-            fnd_lnk=lk;
-        }
-
-        if (lnkObj[lk]["CLASSIFICATION"] && (lnkObj[lk]["CLASSIFICATION"].toUpperCase() !== "OPPORTUNITY" || lnkObj[lk]["CLASSIFICATION"].toUpperCase() !== "SPAM")){
-            fnd_lnk=lk;
-        }
-        
-        if (lnkObj[lk]["CLASSIFICATION"] == "OPPORTUNITY"){
-            temp = JSON.parse(JSON.stringify(lnkObj[lk]));
-            found=1;
-            break;
-        }
-       }
-
-       if (found==0){
-            temp = JSON.parse(JSON.stringify(lnkObj[fnd_lnk]));
-       }
-
-       temp["TIMELINE"] = grp.map(each => lnkObj[each]);
-       if (grp.length>1)
-        finalLs.unshift(temp);
-       else 
-        finalLs.push(temp);
-    }
-
-    await conn.close();
-
-    return finalLs;
 }
 
 
@@ -373,6 +383,7 @@ async function updateAnalyticsDetails(lnks, predictions) {
 
 async function getSentiment(lbl,industry) {
 
+    try{
     var conn = await db_connect();
 
     console.log(`select * from ORAHACKS_SCRAPING where UPPER("SENTIMENT") like '%${lbl.toUpperCase()}%' and  UPPER("INDUSTRY") like '%${industry.toUpperCase()}%'`);
@@ -394,6 +405,9 @@ async function getSentiment(lbl,industry) {
     await conn.close();
 
     return ls;
+} catch(ex){
+    return [];
+}
 }
 
 
