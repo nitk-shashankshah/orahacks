@@ -137,16 +137,16 @@ async function classifyData(lbl,class_type) {
 
     var conn = await db_connect();
 
-    const results = await conn.execute(`select "TITLE","LABEL","LINK","CLASSIFICATION","IMAGE_LINK","INDUSTRY","VECTOR" from ORAHACKS_SCRAPING where UPPER("INDUSTRY") like '%${lbl.toUpperCase()}%' and  UPPER("CLASSIFICATION") like '%${class_type.toUpperCase()}%'`, []);
+    const results = await conn.execute(`select "TITLE","LABEL","LINK","CLASSIFICATION","IMAGE_LINK","INDUSTRY","VECTOR" from ORAHACKS_SCRAPING where (UPPER("INDUSTRY") like '%${lbl.toUpperCase()}%' OR  UPPER("LABEL") like '${lbl.toUpperCase()}%') and  UPPER("CLASSIFICATION") like '%${class_type.toUpperCase()}%'`, []);
 
     var ls = results.rows.filter(each => {
         var ls = []
         if (each["INDUSTRY"]){
             ls = each["INDUSTRY"].split(",");
-        }
-        
+        }           
+
         if (ls.indexOf(lbl.toUpperCase())>=0)
-            return true;
+            return true;              
 
         return false;
     });
@@ -237,9 +237,9 @@ async function embedData() {
 
     var conn = await db_connect();
 
-    console.log(`select * from ORAHACKS_SCRAPING where UPPER("CLASSIFICATION") like '%OPPORTUNITY%' and "VECTOR" IS NULL`);
+    console.log(`select * from ORAHACKS_SCRAPING where "VECTOR" IS NULL`);
 
-    const results = await conn.execute(`select "TITLE", "LINK" from ORAHACKS_SCRAPING where UPPER("CLASSIFICATION") like '%OPPORTUNITY%' and "VECTOR" IS NULL`, []);    
+    const results = await conn.execute(`select "TITLE", "LINK" from ORAHACKS_SCRAPING where "VECTOR" IS NULL`, []);    
 
     for (var i=0;i<results.rows.length;i+=96){
       
