@@ -410,9 +410,9 @@ async function getSentiment(lbl,industry) {
     try{
     var conn = await db_connect();
 
-    console.log(`select * from ORAHACKS_SCRAPING where UPPER("SENTIMENT") like '%${lbl.toUpperCase()}%' and  UPPER("INDUSTRY") like '%${industry.toUpperCase()}%'`);
+    console.log(`select "TITLE","LABEL","LINK","CLASSIFICATION","IMAGE_LINK","INDUSTRY", "SENTIMENT" from ORAHACKS_SCRAPING where UPPER("SENTIMENT") like '%${lbl.toUpperCase()}%' and  UPPER("INDUSTRY") like '%${industry.toUpperCase()}%'`);
 
-    const results = await conn.execute(`select * from ORAHACKS_SCRAPING where UPPER("SENTIMENT") like '%${lbl.toUpperCase()}%' and  UPPER("INDUSTRY") like '%${industry.toUpperCase()}%'`, []);
+    const results = await conn.execute(`select "TITLE","LABEL","LINK","CLASSIFICATION","IMAGE_LINK","INDUSTRY", "SENTIMENT" from ORAHACKS_SCRAPING where UPPER("SENTIMENT") like '%${lbl.toUpperCase()}%' and  UPPER("INDUSTRY") like '%${industry.toUpperCase()}%'`, []);
 
     var ls = results.rows.filter(each => {
         var ls = []
