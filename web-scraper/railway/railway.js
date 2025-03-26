@@ -133,6 +133,30 @@ async function railwayScraping() {
     }
 }
 
+async function getClassifiedData(lbl,class_type) {
+    try{
+        var conn = await db_connect();
+
+        const results = await conn.execute(`select "TITLE","LABEL","LINK","CLASSIFICATION","IMAGE_LINK","INDUSTRY", "SENTIMENT" from ORAHACKS_SCRAPING where (UPPER("INDUSTRY") like '%${lbl.toUpperCase()}%' OR  UPPER("LABEL") like '${lbl.toUpperCase()}%') and UPPER("CLASSIFICATION") like '%${class_type.toUpperCase()}%'`, []);
+
+        var ls = results.rows.filter(each => {
+            var ls = []
+            if (each["INDUSTRY"]){
+                ls = each["INDUSTRY"].split(",");
+            }           
+
+            if (ls.indexOf(lbl.toUpperCase())>=0)
+                return true;
+
+            return false;
+        });
+        return ls;
+    } catch(ex){
+        return [];
+    }
+}
+
+
 async function classifyData(lbl,class_type) {
 
     try{
@@ -430,6 +454,7 @@ async function createTraining() {
 module.exports = {
     railwayScraping : railwayScraping,
     classifyData: classifyData,
+    getClassifiedData: getClassifiedData,
     embedData: embedData,
     db_connect: db_connect,
     createTraining :createTraining,
