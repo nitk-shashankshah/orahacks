@@ -91,7 +91,7 @@ async function cnbc_scraper() {
 
                         try{                              
                             obj["content"] = "";
-                            var prediction = 'OPPORTUNITY';
+                            var prediction = '';
                             //if (obj["content"] && obj["content"].trim())
                             //prediction = await classifyData(obj["content"]);
 
@@ -333,14 +333,14 @@ async function cnbc_classification() {
 
         var conn = await db_connect();
 
-        var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://www.cnbc.com%' and "INDUSTRY" in ('${industry.toUpperCase()}')`;
+        var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://www.cnbc.com%' and "INDUSTRY" like '%${industry.toUpperCase()}%'`;
         
         const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
     
 
         for (var i=0;i<results.rows.length;i+=96){
       
-            var ls = results.rows.filter(each => ((each["INDUSTRY"] ? each["INDUSTRY"].split(",") : []).indexOf(industry)>=0 ? true : false)).map(each=>each["CONTENT"]).slice(i,i+96);
+            var ls = results.rows.filter(each => ((each["INDUSTRY"] ? each["INDUSTRY"].split(",") : []).indexOf(industry)>=0 ? true : false)).map(each=>each["TITLE"]).slice(i,i+96);
             predictions = await classifyData(ls, industry);
   
             console.log("ls:" + ls);

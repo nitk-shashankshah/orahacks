@@ -130,7 +130,7 @@ async function cnn() {
 
                         console.log(JSON.stringify(headlines));
 
-                        var prediction = "OPPORTUNITY";
+                        var prediction = "";
 
                         var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink)`;
 
@@ -277,9 +277,6 @@ async function updateContent(obj, conn) {
   //return classify;
 }
 
-
-
-
 async function cnn_classification() {
   // downloading the target web page
   // by performing an HTTP GET request in Axios
@@ -290,7 +287,7 @@ async function cnn_classification() {
 
       var conn = await db_connect();
 
-      var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://edition.cnn.com%'`;
+      var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%https://edition.cnn.com%' and "INDUSTRY" like '%${industry.toUpperCase()}%'`;
       
       const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
   

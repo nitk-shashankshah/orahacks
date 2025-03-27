@@ -98,22 +98,21 @@ app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
     var ls = await cnbc_scraper();
     } catch(ex){
 
-    }*/
-    ls = await cnbc_industry_classification();
+    }
+    ls = await cnbc_industry_classification();*/
     //ls = await cnbc_get_content();
     await cnbc_classification();
-    var sentiment = await cnbc_sentiment_analysis()
+    //var sentiment = await cnbc_sentiment_analysis()
     res.send(JSON.stringify({}));
 })
 
 // Handling GET /hello request
 app.get("/load/cnn", cors(corsOptions), async (req, res, next) => {
-    //var cls = await cnn();
-    var cls = await sports_classification();
-    //var cls = await cnn_industry_classification();
+    var cls = await cnn();
+    cls = await cnn_industry_classification();
     //var ls = await cnbc_get_content();
-    //cls = await cnn_classification();
-    //var cls = await cnn_sentiment_analysis();
+    cls = await cnn_classification();
+    cls = await cnn_sentiment_analysis();
     res.send(JSON.stringify(cls));
 })
 
