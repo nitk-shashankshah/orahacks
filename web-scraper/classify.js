@@ -11,7 +11,7 @@ const classifyData = async (summaryLs, industry='HEALTHCARE') => {
 
     var model_id = "78b4cc0f-6c20-4c40-9689-14479245bfa8-ft";
     if (industry == 'SPORT')
-      model_id = "78b4cc0f-6c20-4c40-9689-14479245bfa8-ft";
+      model_id = "85dd3cc1-c2da-4535-b730-6045dae08533-ft";
     else if (industry == 'TECH' || industry == 'AI' || industry == 'SEMICONDUCTORS')
       model_id = "917a6b23-48d7-4064-9610-f412ba6cec38-ft";
     else if (industry == 'HEALTHCARE')

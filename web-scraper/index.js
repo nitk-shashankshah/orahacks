@@ -14,7 +14,7 @@ if (!process.execArgv.some(arg => arg.startsWith("--max-http-header-size="))) {
   }
 
 var cors = require('cors');
-var { railwayScraping, classifyData, getClassifiedData, createTraining, embedData , getSentiment}  = require('./railway/railway'); 
+var { sports_classification, railwayScraping, classifyData, getClassifiedData, createTraining, embedData , getSentiment}  = require('./railway/railway'); 
 var { cnbc_scraper, cnbc_get_content, cnbc_classification, cnbc_industry_classification, cnbc_sentiment_analysis }  = require('./cnbc/cnbc'); 
 var { cnn, cnn_classification, cnn_industry_classification,cnn_sentiment_analysis }  = require('./cnn/cnn'); 
 
@@ -107,37 +107,13 @@ app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
 })
 
 // Handling GET /hello request
-app.get("/load/forbes", cors(corsOptions), async (req, res, next) => {
-    var ls = await forbes();
-    console.log(JSON.stringify(ls));
-
-
-
-    
-    res.send(JSON.stringify(ls));
-})
-
-// Handling GET /hello request
-app.get("/load/yahoo", cors(corsOptions), async (req, res, next) => {
-    var ls = await yahoo();
-    console.log(JSON.stringify(ls));
-    res.send(JSON.stringify(ls));
-})
-
-// Handling GET /hello request
-app.get("/load/insider", cors(corsOptions), async (req, res, next) => {
-    var ls = await insider();
-    console.log(JSON.stringify(ls));
-    res.send(JSON.stringify(ls));
-})
-
-// Handling GET /hello request
 app.get("/load/cnn", cors(corsOptions), async (req, res, next) => {
     //var cls = await cnn();
-    var cls = await cnn_industry_classification();
+    var cls = await sports_classification();
+    //var cls = await cnn_industry_classification();
     //var ls = await cnbc_get_content();
-    cls = await cnn_classification();
-    var cls = await cnn_sentiment_analysis();
+    //cls = await cnn_classification();
+    //var cls = await cnn_sentiment_analysis();
     res.send(JSON.stringify(cls));
 })
 

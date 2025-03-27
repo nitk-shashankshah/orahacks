@@ -77,4 +77,8 @@
 {"text":"Amazon on Wednesday announced a long-awaited overhaul of its Alexa digital assistant and will charge a monthly subscription fee to access it. The revamped service, which Amazon is calling Alexa+, is powered by generative artificial intelligence and will cost $19.99 a month, or free for Amazon Prime members.",  "label": "Spam"}
 {"text":"Google plans to cut employees in its People Operations and cloud organisations, according to an internal memo issued by HR chief Fiona Cicconi. The company will offer a voluntary exit programme to staff in its human resources division, while some cloud unit operations support staff will see their roles moved to other countries.",  "label": "Spam"}
 {"text":"Microsoft said Friday that the 21-year-old calling and messaging service will shut down May 5. The software company is encouraging users to migrate to its free Teams app.",  "label": "Spam"}
-{"text":"The software giant reported weaker-than-expected quarterly revenue and issued a forecast that fell short of Street estimates.",  "label": "Spam"}
+{"text":"The software giant reported weaker-than-expected quarterly revenue and issued a forecast that fell short of Street estimates.",  "label": "Spam"},
+
+{"text":"Elon Musk makes India inroads with two major deals", "label": "STRATEGY"},
+{"text":"The LA Times’ new AI tool sympathized with the KKK. Its owner wasn’t aware until hours later", "label":"SPAM"}
+{"text":"Celebrity AI deepfakes are flooding the internet. Hollywood is pushing Congress to fight back", "label":"SPAM"}
