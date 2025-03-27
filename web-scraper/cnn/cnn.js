@@ -113,7 +113,6 @@ async function cnn() {
               var summary = "";
               //var prediction = "";
               try {
-                if (obj["content"]) {
                   let headlines = [];
 
                   //summary = await summarizeText(obj["content"]);
@@ -173,7 +172,7 @@ async function cnn() {
                       }
                     }
                   }
-                }
+                
               } catch (ex) {
                 //console.log(ex.message);
               }

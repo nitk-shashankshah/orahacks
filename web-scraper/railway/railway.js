@@ -27,6 +27,7 @@ async function db_connect(){
 async function railwayScraping() {
     // downloading the target web page
     // by performing an HTTP GET request in Axios
+    var conn = await db_connect();
 
     var pages = [];
 
@@ -50,7 +51,6 @@ async function railwayScraping() {
     });
 
     for (var page_each of pages){
-        let headlines = [];
         for (var i=0;i<=3;i++){
             var sub_page_url = page_each;
 
@@ -75,6 +75,9 @@ async function railwayScraping() {
                     obj["ttle"] = $(lnk).html().trim();
                     obj["lnk"] = $(lnk).attr("href");
                     obj["lbl"] = lbl;
+                    let headlines = [];
+
+                    console.log(JSON.stringify(obj));
 
                     /*const pageResp = await axios.request({
                         method: "GET",
@@ -92,40 +95,39 @@ async function railwayScraping() {
                     console.log(JSON.stringify(obj["title"]));*/
                     
                     headlines.push(obj);
+
+                    console.log(JSON.stringify(headlines));
+
+                    /*try{
+                        var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK") values(:ttle,:lbl,:lnk)`;
+            
+                        var binds = headlines.map((each, idx) => ({
+                            ttle: each.ttle,
+                            lnk: each.lnk,
+                            lbl: each.lbl.replace(/\//g,'')
+                        }));            
+            
+                        console.log(JSON.stringify(binds));
+            
+                        var options = {
+                            autoCommit: false,
+                            bindDefs: {
+                                ttle: { type: oracledb.STRING, maxSize: 5000 },
+                                lbl: { type: oracledb.STRING, maxSize: 500 },
+                                lnk: { type: oracledb.STRING, maxSize: 5000 }
+                            }
+                        };
+                        
+                        const results = await conn.executeMany(insertStatement, binds, options);
+                        
+                        await conn.commit();
+                    } catch(ex){
+                        console.log(ex.message);
+                    }*/
                 });        
             });
         }
-    
-        var conn = await db_connect();
-
-        console.log(JSON.stringify(headlines));
-
-        try{
-            var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK") values(:ttle,:lbl,:lnk)`;
-
-            var binds = headlines.map((each, idx) => ({
-                ttle: each.ttle,
-                lnk: each.lnk,
-                lbl: each.lbl.replace(/\//g,'')
-            }));            
-
-            console.log(JSON.stringify(binds));
-
-            var options = {
-                autoCommit: false,
-                bindDefs: {
-                    ttle: { type: oracledb.STRING, maxSize: 5000 },
-                    lbl: { type: oracledb.STRING, maxSize: 500 },
-                    lnk: { type: oracledb.STRING, maxSize: 5000 }
-                }
-            };
-            
-            const results = await conn.executeMany(insertStatement, binds, options);
-            
-            await conn.commit();
-        } catch(ex){
-            console.log(ex.message);
-        }
+          
 
         await conn.close();
     
@@ -350,7 +352,7 @@ async function embedData() {
 
     console.log(`select * from ORAHACKS_SCRAPING where "VECTOR" IS NULL`);
 
-    const results = await conn.execute(`select "TITLE", "LINK" from ORAHACKS_SCRAPING where "VECTOR" IS NULL`, []);    
+    const results = await conn.execute(`select "TITLE", "LINK" from ORAHACKS_SCRAPING where "VECTOR" IS NULL and "INDUSTRY" IS NOT NULL`, []);    
 
     for (var i=0;i<results.rows.length;i+=96){
       

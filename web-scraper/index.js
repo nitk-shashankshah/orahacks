@@ -13,7 +13,6 @@ if (!process.execArgv.some(arg => arg.startsWith("--max-http-header-size="))) {
     return;
   }
 
-
 var cors = require('cors');
 var { railwayScraping, classifyData, getClassifiedData, createTraining, embedData , getSentiment}  = require('./railway/railway'); 
 var { cnbc_scraper, cnbc_get_content, cnbc_classification, cnbc_industry_classification, cnbc_sentiment_analysis }  = require('./cnbc/cnbc'); 
@@ -21,10 +20,23 @@ var { cnn, cnn_classification, cnn_industry_classification,cnn_sentiment_analysi
 
 var { reuters_scraper, reuters_industry_classification, reuters_get_content, reuters_classification, reuters_sentiment_analysis  }  = require('./reuters/reuters'); 
 
+
 const clientRoutes = require("./src/routes/clientRoutes");
 const industryRoutes = require("./src/routes/industryRoutes");
 const widgetsRoutes = require("./src/routes/widgetsRoutes");
 const clientParamsRoutes = require("./src/routes/clientParamsRoutes");
+const fs = require("fs");
+const path = require("path");
+var {CohereClient} = require("cohere-ai");
+
+const filePath = path.resolve("response.json");
+
+// Load the JSON response from a local file
+const response = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+
+const cohere = new CohereClient({
+    token: "FAkelchNnrqTDiWqN32bnBykS1wmn12wKJMAuTZi",
+  });
 
 var transportScraping = require('./transport'); 
 
@@ -82,10 +94,14 @@ app.get("/load/railway", cors(corsOptions), async (req, res, next) => {
 
 // Handling GET /hello request
 app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
-    /*var ls = await cnbc_scraper();
+    /*try{
+    var ls = await cnbc_scraper();
+    } catch(ex){
+
+    }*/
     ls = await cnbc_industry_classification();
-    ls = await cnbc_get_content();
-    await cnbc_classification();*/
+    //ls = await cnbc_get_content();
+    await cnbc_classification();
     var sentiment = await cnbc_sentiment_analysis()
     res.send(JSON.stringify({}));
 })
@@ -94,6 +110,10 @@ app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
 app.get("/load/forbes", cors(corsOptions), async (req, res, next) => {
     var ls = await forbes();
     console.log(JSON.stringify(ls));
+
+
+
+    
     res.send(JSON.stringify(ls));
 })
 
@@ -113,10 +133,10 @@ app.get("/load/insider", cors(corsOptions), async (req, res, next) => {
 
 // Handling GET /hello request
 app.get("/load/cnn", cors(corsOptions), async (req, res, next) => {
-    /*var ls = await cnn();
+    //var cls = await cnn();
     var cls = await cnn_industry_classification();
-    var ls = await cnbc_get_content();
-    cls = await cnn_classification();*/
+    //var ls = await cnbc_get_content();
+    cls = await cnn_classification();
     var cls = await cnn_sentiment_analysis();
     res.send(JSON.stringify(cls));
 })
@@ -128,10 +148,48 @@ app.get("/load/reuters", cors(corsOptions), async (req, res, next) => {
     //let ls = await reuters_get_content();
     ls = await reuters_classification();
     ls = await reuters_sentiment_analysis();
-    console.log(JSON.stringify(ls));
+    //console.log(JSON.stringify(ls));
     res.send(JSON.stringify(ls));
 })
 
+
+
+
+// Function to extract product details
+const extractProductDetails = (data) => {
+    console.log(data);
+    const products = data.immersive_products || [];
+
+    return products.map((product, index) => ({
+        id: index + 1,
+        brand: product.source || "Unknown",
+        title: product.title || "No Title",
+        price: product.price || "N/A",
+        currency: product.extracted_price ? "$" : "N/A",
+        rating: product.rating || "No Rating",
+        reviews: product.reviews || "No Reviews",
+        seller: product.source || "Unknown Seller",
+        //link: product.link || "No Link",
+        //thumbnail: product.thumbnail || "No Image"
+    }));
+};
+
+// API route
+app.get("/sports/tshirts", async (req, res) => {
+    const products = extractProductDetails(response);   
+
+    let chat = await cohere.chat({
+        model: "command",
+        message: "I am a sprots company and making tshirts I am sharing some sports company data with you please provide me some insights about it, data - " + JSON.stringify(products),
+    });
+
+    console.log(chat);
+    let messageArray = chat.text.split('\n\n'); 
+    messageArray.shift(); 
+    chat = messageArray.join('\n\n');
+
+    res.json({ products, oppurtinuty: chat });
+});
 
 // Server setup
 app.listen(3001, () => {
