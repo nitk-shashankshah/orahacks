@@ -166,6 +166,8 @@ async function classifyData(lbl,class_type) {
 
         const results = await conn.execute(`select "TITLE","LABEL","LINK","CLASSIFICATION","IMAGE_LINK","INDUSTRY","VECTOR", "SENTIMENT" from ORAHACKS_SCRAPING where (UPPER("INDUSTRY") like '%${lbl.toUpperCase()}%' OR  UPPER("LABEL") like '${lbl.toUpperCase()}%') and UPPER("CLASSIFICATION") NOT IN ('BRANDING')`, []);
 
+        console.log(JSON.stringify(results.rows));
+
         var ls = results.rows.filter(each => {
             var ls = []
             if (each["INDUSTRY"]){
@@ -177,6 +179,8 @@ async function classifyData(lbl,class_type) {
 
             return false;
         });
+
+        console.log(JSON.stringify(ls.map(each => each["TITLE"])));
 
         var obj = await getSimilarities(ls);
 
@@ -223,7 +227,7 @@ async function classifyData(lbl,class_type) {
                 fnd_lnk=lk;
             }
             
-            if (lnkObj[lk]["CLASSIFICATION"] == "OPPORTUNITY"){
+            if (lnkObj[lk]["CLASSIFICATION"].toUpperCase() == "OPPORTUNITY"){
                 temp = JSON.parse(JSON.stringify(lnkObj[lk]));
                 found=1;
                 break;
