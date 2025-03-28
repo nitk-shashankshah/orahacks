@@ -14,7 +14,7 @@ if (!process.execArgv.some(arg => arg.startsWith("--max-http-header-size="))) {
   }
 
 var cors = require('cors');
-var { sports_classification, railwayScraping, classifyData, getClassifiedData, createTraining, embedData , getSentiment}  = require('./railway/railway'); 
+var { sports_classification, railwayScraping, classifyData, getSearchClassifiedData, getClassifiedData, createTraining, embedData , getSentiment}  = require('./railway/railway'); 
 var { cnbc_scraper, cnbc_get_content, cnbc_classification, cnbc_industry_classification, cnbc_sentiment_analysis }  = require('./cnbc/cnbc'); 
 var { cnn, cnn_classification, cnn_industry_classification,cnn_sentiment_analysis }  = require('./cnn/cnn'); 
 
@@ -78,9 +78,11 @@ app.get("/sentiment", cors(corsOptions), async (req, res, next) => {
 // Handling GET /hello request
 app.get("/classify", cors(corsOptions), async (req, res, next) => {
     var ls;
-    if (req.query.classification.toUpperCase() == 'OPPORTUNITY')
+    if (req.query.classification && req.query.classification.toUpperCase() == 'OPPORTUNITY')
         ls = await classifyData(req.query.label, req.query.classification);
-    else
+    else if  (req.query.search)
+        ls = await getSearchClassifiedData(req.query.search);
+    else if  (req.query.classification)
         ls = await getClassifiedData(req.query.label, req.query.classification);
     res.send(JSON.stringify(ls));
 })

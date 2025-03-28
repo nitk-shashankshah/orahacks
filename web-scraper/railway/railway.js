@@ -265,6 +265,108 @@ async function classifyData(lbl,class_type) {
     }
 }
 
+async function getSearchClassifiedData(searchText) {
+
+    try{
+        var conn = await db_connect();
+
+        const results = await conn.execute(`select "TITLE","LABEL","LINK","CLASSIFICATION","IMAGE_LINK","INDUSTRY","VECTOR", "SENTIMENT" from ORAHACKS_SCRAPING where UPPER("TITLE") like '%${searchText.toUpperCase()}%'`, []);
+
+        console.log(JSON.stringify(results.rows.length));
+
+        var ls = results.rows;
+
+        var obj = await getSimilarities(ls);
+
+        var groups = [];
+
+        for (var k of ls.map(each => each["LINK"])){
+            var group = [];
+            var flg = 0;
+            for (var grp of groups){
+                if (grp.indexOf(k)>=0){
+                    flg=1;
+                    group = grp;
+                    break;
+                }
+            }
+        
+            if (flg == 0){
+                group.push(k);
+                groups.push(group);
+            }
+            
+            makeGroup(k, group, obj);
+        }
+
+        console.log(JSON.stringify(groups));
+
+        var lnkObj = {};
+    
+        ls.map(each => {
+            delete each["VECTOR"];
+            lnkObj[each["LINK"]] = each;
+        });
+
+        console.log(JSON.stringify(ls.length));
+
+        var finalLs = [];
+        for (var grp of groups){
+        var found = 0;
+        var temp = {};
+        var fnd_lnk = '';
+        for (var lk of grp){
+
+            console.log(">>" + JSON.stringify(lnkObj[lk]));
+
+            if (!lnkObj[lk]["CLASSIFICATION"]) {
+                fnd_lnk=lk;
+            }
+
+            if (lnkObj[lk]["CLASSIFICATION"] && (lnkObj[lk]["CLASSIFICATION"].toUpperCase() !== "OPPORTUNITY" && lnkObj[lk]["CLASSIFICATION"].toUpperCase() !== "SPAM")){
+                fnd_lnk=lk;
+            }
+            
+            if (lnkObj[lk]["CLASSIFICATION"] && lnkObj[lk]["CLASSIFICATION"].toUpperCase() == "OPPORTUNITY"){
+                temp = JSON.parse(JSON.stringify(lnkObj[lk]));
+                found=1;
+                break;
+            }
+
+            console.log(JSON.stringify(temp));
+
+        }
+
+        console.log("found:"+found);
+        console.log("fnd_lnk:"+fnd_lnk);
+
+        if (found==0){
+                if (fnd_lnk)
+                    temp = JSON.parse(JSON.stringify(lnkObj[fnd_lnk]));
+                else {
+                    if (lnkObj[grp[0]]["CLASSIFICATION"] && lnkObj[grp[0]]["CLASSIFICATION"].toUpperCase() == 'SPAM')
+                        continue;
+                    temp = JSON.parse(JSON.stringify(lnkObj[grp[0]]));
+                }
+        }
+
+        temp["TIMELINE"] = grp.map(each => lnkObj[each]);
+
+        if (grp.length>1)
+            finalLs.unshift(temp);
+        else 
+            finalLs.push(temp);
+        }
+
+        await conn.close();
+
+        console.log(finalLs.length);
+
+        return finalLs;
+    } catch(ex){
+        return [];
+    }
+}
 
 async function getTimeLine(vector) {
 
@@ -469,6 +571,7 @@ module.exports = {
     getClassifiedData: getClassifiedData,
     embedData: embedData,
     db_connect: db_connect,
+    getSearchClassifiedData: getSearchClassifiedData,
     createTraining :createTraining,
     getSentiment: getSentiment
 }
