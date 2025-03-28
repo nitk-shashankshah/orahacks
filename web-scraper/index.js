@@ -155,17 +155,29 @@ const extractProductDetails = (data) => {
 app.get("/sports/tshirts", async (req, res) => {
     const products = extractProductDetails(response);   
 
-    let chat = await cohere.chat({
-        model: "command",
-        message: "I am a sprots company and making tshirts I am sharing some sports company data with you please provide me some insights about it, data - " + JSON.stringify(products),
-    });
+    // let chat = await cohere.chat({
+    //     model: "command",
+    //     message: "I am a sprots company and making tshirts I am sharing some sports company data with you please provide me some insights about it, data - " + JSON.stringify(products),
+    // });
 
-    console.log(chat);
-    let messageArray = chat.text.split('\n\n'); 
-    messageArray.shift(); 
-    chat = messageArray.join('\n\n');
+    // console.log(chat);
+    // let messageArray = chat.text.split('\n\n'); 
+    // messageArray.shift(); 
+    // chat = messageArray.join('\n\n');
 
-    res.json({ products, oppurtinuty: chat });
+    res.json({ products, oppurtinuty: `1. Most of the t-shirts seem to be priced below $50, with the cheapest ones costing $5.99. The most expensive t-shirt is $59.99. The data includes t-shirts with a wide range of prices, so there's a t-shirt for every budget!
+
+2. The t-shirts have different ratings ranging from 4.3 to 5, with the average being 4.6. The products with higher ratings tend to have more reviews, but this is not always the case, so it's always important to read the reviews to know more about the product.
+
+3. The t-shirts come from a variety of brands such as Nike, 32 Degrees, Adidas, Macy's, and more. Most of the t-shirts are sold by Macy's, Walmart, and DICK's Sporting Goods.
+
+4. The t-shirts come in different colours, the most popular being black, followed by grey, white, and red.
+
+5. Most of the t-shirts are men's t-shirts, but there are also products targeted towards women, such as the Nike Women's Sportswear Club T-Shirt and the Adidas Women's Designed for Training Workout T-Shirt.
+
+6. Some t-shirts have a unique design or style to them. For example, the New Balance Men's Sport Essentials Logo T-Shirt has a classic logo design, while the Patagonia Men's Capilene Cool Daily Shirt has a unique style to it.
+
+These insights can help guide decisions on which t-shirts to purchase, based on ratings, price, design, and more.` })
 });
 
 // Server setup
