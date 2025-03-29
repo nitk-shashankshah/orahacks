@@ -122,7 +122,7 @@ async function reuters_scraper() {
 
                   try {
                                   
-                    var prediction = "OPPORTUNITY";
+                    var prediction = "";
 
                     var insertStatement = `insert into ORAHACKS_SCRAPING("TITLE","LABEL","LINK","CONTENT","CLASSIFICATION","IMAGE_LINK") values(:ttle,:lbl,:lnk,:content,:prediction,:imgLink)`;
 
@@ -194,7 +194,7 @@ async function reuters_industry_classification() {
     await conn.close();
 
     for (var i=0;i<results.rows.length;i++){
-        var ls = results.rows.map(each=>each["CONTENT"]).slice(i,i+96);
+        var ls = results.rows.map(each=>each["TITLE"]).slice(i,i+96);
         
         console.log(JSON.stringify(ls));
         
@@ -259,7 +259,7 @@ async function reuters_classification() {
 
         var conn = await db_connect();
 
-        var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%www.bloomberg.com%' and ("INDUSTRY" in ('${industry.toUpperCase()}') OR UPPER("LABEL") LIKE ('%${industry.toUpperCase()}%'))`;
+        var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%www.bloomberg.com%' and ("INDUSTRY" like '%${industry.toUpperCase()}%' OR UPPER("LABEL") LIKE ('%${industry.toUpperCase()}%'))`;
         
         const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
 
@@ -288,7 +288,7 @@ async function reuters_sentiment_analysis() {
 
     var conn = await db_connect();
 
-    var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%www.bloomberg.com%'`;
+    var selectStatement = `select * from ORAHACKS_SCRAPING where "LINK" like '%www.bloomberg.com%' and "INDUSTRY" IS NOT NULL and "SENTIMENT" IS NULL`;
         
     const results = await conn.execute(selectStatement, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
     

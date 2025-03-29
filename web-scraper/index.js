@@ -31,6 +31,11 @@ var {CohereClient} = require("cohere-ai");
 
 const filePath = path.resolve("response.json");
 
+const filePath2 = path.resolve("response_sree.json");
+
+// Load the JSON response from a local file
+const response_sree = JSON.parse(fs.readFileSync(filePath2, "utf-8"));
+
 // Load the JSON response from a local file
 const response = JSON.parse(fs.readFileSync(filePath, "utf-8"));
 
@@ -96,14 +101,14 @@ app.get("/load/railway", cors(corsOptions), async (req, res, next) => {
 
 // Handling GET /hello request
 app.get("/load/cnbc", cors(corsOptions), async (req, res, next) => {
-    /*try{
+    try{
     var ls = await cnbc_scraper();
     } catch(ex){
 
     }
-    ls = await cnbc_industry_classification();*/
+    //ls = await cnbc_industry_classification();
     //ls = await cnbc_get_content();
-    await cnbc_classification();
+    //await cnbc_classification();
     //var sentiment = await cnbc_sentiment_analysis()
     res.send(JSON.stringify({}));
 })
@@ -178,6 +183,51 @@ app.get("/sports/tshirts", async (req, res) => {
 6. Some t-shirts have a unique design or style to them. For example, the New Balance Men's Sport Essentials Logo T-Shirt has a classic logo design, while the Patagonia Men's Capilene Cool Daily Shirt has a unique style to it.
 
 These insights can help guide decisions on which t-shirts to purchase, based on ratings, price, design, and more.` })
+});
+
+
+// Function to process industry specific data
+// Get the data in this format:
+// [ {"SPORTS": "<all-the-sport-related-content>", ...}]
+const processIndustrySpecificData = (data) => {
+    var industryData = {};
+
+    data.forEach((row) => {
+        if(row.industry && row.content) {
+            var industries = row.industry.split(",");
+            industries.forEach((industry) => {
+                if(!industryData[industry]) {
+                    industryData[industry] = "";
+                }
+                if((industryData[industry] + row["content"]).length < 4096) {
+                    industryData[industry] = industryData[industry] + row["content"];
+                }
+            });
+        }
+    });
+    return industryData;
+};
+
+// API route
+app.get("/industry/trends", async (req, res) => {
+
+    const industryData = processIndustrySpecificData(response_sree);
+    const cohere = new CohereClient({
+        token: "FAkelchNnrqTDiWqN32bnBykS1wmn12wKJMAuTZi",
+    });
+    var industries = Object.keys(industryData);
+    var trends = {};
+
+    for(var i=0; i<industries.length; i++) {
+        let chat = await cohere.chat({
+            model: "command",
+            message: `Review the following content and figure out an overall trend in this industry of ${industries[i]} - ` + JSON.stringify(industryData[industries[i]]),
+        });
+        trends[industries[i]] = chat.text;
+    }
+
+    res.json(trends);
+
 });
 
 // Server setup
