@@ -215,16 +215,16 @@ app.get("/industry/trends", async (req, res) => {
     const cohere = new CohereClient({
         token: "FAkelchNnrqTDiWqN32bnBykS1wmn12wKJMAuTZi",
     });
-    var industries = Object.keys(industryData);
+    //var industries = Object.keys(industryData);
     var trends = {};
 
-    for(var i=0; i<industries.length; i++) {
+    //for(var i=0; i<industries.length; i++) {
         let chat = await cohere.chat({
             model: "command",
-            message: `Review the following content and figure out an overall trend in this industry of ${industries[i]} - ` + JSON.stringify(industryData[industries[i]]),
+            message: `Review the following content and figure out an overall trend in this industry of ${req.query.industry} - ` + JSON.stringify(req.query.industry),
         });
-        trends[industries[i]] = chat.text;
-    }
+        trends[req.query.industry] = chat.text;
+    //}
 
     res.json(trends);
 
