@@ -479,6 +479,31 @@ async function embedData() {
     return true;
 }
 
+
+async function fetchTrends(industry_name) {
+    try{
+        var conn = await db_connect();
+
+        industry_name = 'TECH';
+
+        console.log(`select INDUSTRY_TRENDS."ANALYSIS" from INDUSTRY_TRENDS where "NAME" like '%${industry_name.toUpperCase()}%';`);
+
+        const results = await conn.execute(`select INDUSTRY_TRENDS."ANALYSIS" from INDUSTRY_TRENDS where "NAME" like '%${industry_name.toUpperCase()}%'`, []);
+
+        console.log(JSON.stringify(results));
+
+        await conn.close();
+
+        if (results.rows.length)
+            return results.rows[0]["ANALYSIS"];
+        
+        return "";
+    }catch(ex){
+        console.log(ex.message);
+    }
+}
+
+
 async function updateAnalyticsDetails(lnks, predictions) {
   // downloading the target web page
   // by performing an HTTP GET request in Axios
@@ -573,5 +598,6 @@ module.exports = {
     db_connect: db_connect,
     getSearchClassifiedData: getSearchClassifiedData,
     createTraining :createTraining,
-    getSentiment: getSentiment
+    getSentiment: getSentiment,
+    fetchTrends :fetchTrends
 }

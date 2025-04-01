@@ -14,7 +14,7 @@ if (!process.execArgv.some(arg => arg.startsWith("--max-http-header-size="))) {
   }
 
 var cors = require('cors');
-var { sports_classification, railwayScraping, classifyData, getSearchClassifiedData, getClassifiedData, createTraining, embedData , getSentiment}  = require('./railway/railway'); 
+var { sports_classification, fetchTrends, railwayScraping, classifyData, getSearchClassifiedData, getClassifiedData, createTraining, embedData , getSentiment}  = require('./railway/railway'); 
 var { cnbc_scraper, cnbc_get_content, cnbc_classification, cnbc_industry_classification, cnbc_sentiment_analysis }  = require('./cnbc/cnbc'); 
 var { cnn, cnn_classification, cnn_industry_classification,cnn_sentiment_analysis }  = require('./cnn/cnn'); 
 
@@ -211,23 +211,16 @@ const processIndustrySpecificData = (data) => {
 // API route
 app.get("/industry/trends", async (req, res) => {
 
-    const industryData = processIndustrySpecificData(response_sree);
-    const cohere = new CohereClient({
-        token: "FAkelchNnrqTDiWqN32bnBykS1wmn12wKJMAuTZi",
-    });
-    //var industries = Object.keys(industryData);
-    var trends = {};
+    var trends = await fetchTrends(req.query.industry);
 
-    //for(var i=0; i<industries.length; i++) {
-        let chat = await cohere.chat({
-            model: "command",
-            message: `Review the following content and figure out an overall trend in this industry of ${req.query.industry} - ` + JSON.stringify(req.query.industry),
-        });
-        trends[req.query.industry] = chat.text;
-    //}
+    var op = {};
+    
+    op[req.query.industry] = trends;
+    
+    console.log(JSON.stringify(op));
 
-    res.json(trends);
-
+    res.json(op);
+    
 });
 
 // Server setup
